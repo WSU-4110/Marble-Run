@@ -2,13 +2,51 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Math Marble Race</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/login.css">
 </head>
 
 <body>
+    <main>
+       
+        <header class="intro">
+            <h1>Math Marble Race</h1>
+            <p class="lead">Race your marble to the finish line</p>
+        </header>
 
+     
+        <section class="card">
+           
+            <div class="tabs" role="tablist">
+                <button type="button" role="tab" id="tab-in" aria-selected="true">Log in</button>
+                <button type="button" role="tab" id="tab-up" aria-selected="false">Create account</button>
+            </div>
+
+            <form id="auth-form" novalidate>
+               
+                <div id="signup-fields" class="hidden">
+                    <label for="name">Player name</label>
+                    <input id="name" maxlength="20" placeholder="Pick a name for your marble">
+                </div>
+
+                <label for="email">Email</label>
+                <input id="email" type="email" required>
+
+                <label for="password">Password</label>
+                <input id="password" type="password" minlength="6" required>
+
+                <button class="primary" id="submit" type="submit">Log in</button>
+                <p class="msg" id="msg" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+    //runs after loading html page
+    <script type="module" src="js/login.js"></script>
 </body>
 
 </html>
