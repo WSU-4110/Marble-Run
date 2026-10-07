@@ -89,7 +89,7 @@ button:focus-visible {
 .msg.ok {
     color: var(--teal);
 }
-
+/*used to hide elements on the page when not needed, like the sign up form when the user is logging in*/
 .hidden {
     display: none !important;
 }
