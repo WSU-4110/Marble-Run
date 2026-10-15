@@ -11,27 +11,28 @@
     <link rel="stylesheet" href="css/login.css">
 </head>
 
-<body>
+<body class="checking">
+    <div class="background" aria-hidden="true"></div>
     <main>
-       
+
         <header class="intro">
             <h1>Math Marble Race</h1>
             <p class="lead">Race your marble to the finish line</p>
         </header>
 
-     
+
         <section class="card">
-           
+
             <div class="tabs" role="tablist">
                 <button type="button" role="tab" id="tab-in" aria-selected="true">Log in</button>
                 <button type="button" role="tab" id="tab-up" aria-selected="false">Create account</button>
             </div>
 
             <form id="auth-form" novalidate>
-               
+
                 <div id="signup-fields" class="hidden">
                     <label for="name">Player name</label>
-                    <input id="name" maxlength="20" placeholder="Pick a name for your marble">
+                    <input id="name" maxlength="20">
                 </div>
 
                 <label for="email">Email</label>
@@ -45,8 +46,9 @@
             </form>
         </section>
     </main>
-    //runs after loading html page
+
     <script type="module" src="js/login.js"></script>
+    <script>setTimeout(function () { document.body.classList.remove('checking'); }, 3000);</script>
 </body>
 
 </html>

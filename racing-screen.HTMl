@@ -1,22 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Math Marble Race - Race</title>
-    <link rel="stylesheet" href="css/racing.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/game.css">
 </head>
 
 <body>
     <canvas id="canvas"></canvas>
 
-    <p id="question-display"></p>
-    <input type="number" id="answer-input">
-    <button id="answer-btn">Input Answer</button>
-    <p id="feedback-display"></p>
+    <div class="timer" role="timer" aria-label="Time left">
+        <div class="timer-track">
+            <div class="timer-bar" id="timer-bar"></div>
+        </div>
+        <span class="timer-text" id="timer-text">3</span>
+    </div>
 
-    <script src="JS/question.js" defer></script>
-    <script src="JS/racing.js"></script>
+    <a class="home-btn" href="start-screen.html">Home</a>
+
+    <main class="game">
+        <p class="hud" id="hud"></p>
+
+        <p class="question" id="question" aria-live="polite"></p>
+
+        <form id="answer-form" novalidate>
+            <input id="answer" type="text" inputmode="numeric" autocomplete="off" placeholder="Type your answer"
+                aria-label="Your answer">
+            <button class="answer-btn" type="submit">Answer</button>
+        </form>
+
+        <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+        <div class="popup" id="popup" hidden>
+            <button class="restart-btn" id="restart" type="button">Restart</button>
+        </div>
+    </main>
+
+    <!-- game.js runs the race, timer and canvas; it imports js/questions.js for the questions -->
+    <script type="module" src="js/game.js"></script>
 </body>
 
 </html>
