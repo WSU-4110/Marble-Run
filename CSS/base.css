@@ -1,22 +1,22 @@
-/* Shared across every page: colors, fonts, form controls, buttons */
 :root {
     --paper: #F2F6FC;
-    --ink: #17203A;
+    --ink: #0a2c92;
     --track: #DCE6F7;
-    --blue: #3F6FE0;
-    --red: #E5484D;
+    --blue: #3c73f1;
+    --red: #ae0a0f;
     --gold: #F2B01E;
     --teal: #1E9E87;
     --radius: 14px;
 }
-/*makes the borders stay true to size*/
+
 * {
     box-sizing: border-box;
 }
 
 html,
 body {
-    margin: 0;/*removes default margin*/
+    margin: 0;
+    /*removes default margin*/
     min-height: 100%;
 }
 
@@ -58,6 +58,7 @@ input:focus,
 button:focus-visible {
     outline: 3px solid var(--blue);
 }
+
 /*login button*/
 .primary {
     width: 100%;
@@ -75,6 +76,7 @@ button:focus-visible {
     opacity: .6;
     cursor: wait;
 }
+
 .msg {
     min-height: 1.5em;
     margin: 14px 0 0;
@@ -89,7 +91,7 @@ button:focus-visible {
 .msg.ok {
     color: var(--teal);
 }
-/*used to hide elements on the page when not needed, like the sign up form when the user is logging in*/
+
 .hidden {
     display: none !important;
 }

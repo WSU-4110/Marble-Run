@@ -1,7 +1,7 @@
 import { db } from './supabase.js';
 
 // The page everyone lands on after login. Change the file name here if you rename it.
-export const START_PAGE = 'Start_Screen.html';
+export const START_PAGE = 'start-screen.html';
 
 export async function getProfile() {
     const { data: { session } } = await db.auth.getSession();//get current session from supabase auth
@@ -10,8 +10,10 @@ export async function getProfile() {
     const { data, error } = await db
         .from('profiles')
         .select('id, display_name, coins, equipped_marble, equipped_landscape, unlocked_items')//selected columns
+
         .eq('id', session.user.id)//look for the profile with the same id as the current session user
         .single();//resturn a single row instead of an array
+
     //if there is an error, log it and return null
     if (error) { console.error('Could not load profile:', error.message); return null; }
 

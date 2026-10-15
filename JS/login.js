@@ -74,8 +74,20 @@ searchId('auth-form').addEventListener('submit', async (e) => {
 });
 
 //checks for existing session and redirects to the starting page if the user is already logged in
-if (isConfigured) {
-    getProfile().then((profile) => {
-        if (profile) window.location.replace(START_PAGE);
-    });
+// Hide the login page until we know whether the user is already logged in
+async function checkExistingSession() {
+    try {
+        if (isConfigured) {
+            const profile = await getProfile();
+            if (profile) {
+                window.location.replace(START_PAGE);
+                return; // stay hidden while the browser redirects
+            }
+        }
+    } catch (err) {
+        console.error(err);
+    }
+    document.body.classList.remove('checking');
 }
+
+checkExistingSession();
