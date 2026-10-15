@@ -1,5 +1,5 @@
 import { requireLogin } from './auth.js';
-import { generateQuestion } from './questions.js';
+import { generateQuestion } from './question.js';
 
 const REQUIRE_LOGIN = true; // set to false to test this page without Supabase
 const QUESTION_SECONDS = 3;    
