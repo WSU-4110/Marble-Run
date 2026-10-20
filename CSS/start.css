@@ -53,6 +53,99 @@ h1 {
     font-size: 1.4rem;
     cursor: pointer;
 }
+
+.top-bar {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+}
+
+.top-btn {
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: #e5f0ff;
+    color: #14213d;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.top-btn:hover {
+    background: #fca311;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index:20;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal-panel {
+    width: min(420px, 90%);
+    padding: 24px;
+    background: #e5f0ff;
+    border-radius: 24px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* base.css makes h2 huge, so shrink it inside the panel */
+.modal-panel h2 {
+    font-size: 1.8rem;
+}
+
+.modal-panel h3 {
+    margin: 16px 0 0;
+    font-family: 'Fredoka', sans-serif;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #14213d;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    background: #fca311;
+}
+
+/* base.css gives every input width:100%, a border and padding, which breaks sliders and checkboxes */
+.modal-panel input[type="range"] {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    accent-color: #fca311;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle input {
+    width: auto;
+}
 .shop-btn {
     position: fixed;
     top: 20px;

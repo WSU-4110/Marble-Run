@@ -1,6 +1,8 @@
 import { requireLogin } from './auth.js';
 import { generateQuestion } from './question.js';
 
+import { startMusic, stopMusic } from './music.js';
+
 const REQUIRE_LOGIN = true; // set to false to test this page without Supabase
 const QUESTION_SECONDS = 10;    
 const TRACK_METERS = 100;      
@@ -208,11 +210,13 @@ function startRace() {
     render(BASE_SPEED);
     newQuestion();
     startTimer();
+    startMusic();
     requestAnimationFrame(frame);
 }
 
 function finishRace() {
     racing = false;
+    stopMusic();
     stopTimer();
     searchID('answer').disabled = true;
     searchID('answer-form').querySelector('button').disabled = true;
