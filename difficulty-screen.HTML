@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,4 +12,76 @@
         </header>
     </main>
 </body>
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Marble Race - Difficulty</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/start.css">
+</head>
+
+<body>
+    <main class="start">
+        <h1>Choose Your Level</h1>
+        <p class="lead">Customize your math race!</p>
+
+        <form id="level-form">
+            <section class="level-section">
+                <h2>1. Choose Difficulty</h2>
+
+                <label>
+                    <input type="radio" name="difficulty" value="easy" checked>
+                    Easy
+                </label>
+
+                <label>
+                    <input type="radio" name="difficulty" value="medium">
+                    Medium
+                </label>
+
+                <label>
+                    <input type="radio" name="difficulty" value="hard">
+                    Hard
+                </label>
+            </section>
+
+            <section class="level-section">
+                <h2>2. Choose Arithmetic</h2>
+
+                <label>
+                    <input type="radio" name="operation" value="addition" checked>
+                    Addition (+)
+                </label>
+
+                <label>
+                    <input type="radio" name="operation" value="subtraction">
+                    Subtraction (-)
+                </label>
+
+                <label>
+                    <input type="radio" name="operation" value="multiplication">
+                    Multiplication (×)
+                </label>
+
+                <label>
+                    <input type="radio" name="operation" value="division">
+                    Division (÷)
+                </label>
+            </section>
+
+            <button class="start-btn" type="submit">Save Level</button>
+        </form>
+    </main>
+
+    <script type="module" src="js/difficulty.js"></script>
+</body>
+
 </html>
