@@ -4,7 +4,7 @@ import { generateQuestion } from './question.js';
 import { startMusic, stopMusic } from './music.js';
 
 const REQUIRE_LOGIN = true; // set to false to test this page without Supabase
-const QUESTION_SECONDS = 3;    
+const QUESTION_SECONDS = 10;    
 const TRACK_METERS = 100;      
 const BASE_SPEED = 3;           
 const BOOST_SPEED = 5;         
@@ -12,9 +12,9 @@ const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;   // how long a boost or slowdown lasts
 
 const PIXELS_PER_METER = 60;    // how far the background scrolls for each meter the marble moves
-const MARBLE_Y = 0.35;          // marble's height on screen (0 = top, 1 = bottom) this will 
-//probably chnaged when we implement bots 
-const ZOOM = 0.5; // how close the camera is, smaller = farther away
+const MARBLE_START_Y = 0.35;    // marble's starting height (0 = top, 1 = bottom)
+const ZOOM = 0.5;               // how close the camera is, smaller = farther away
+const BG_SCROLL_SPEED = 150;    // pixels per second (constant background movement)
 
 const searchID = (id) => document.getElementById(id);
 
@@ -22,8 +22,12 @@ let current = null;   // the question on screen: { text, answer }
 let timerId = null;
 let endTime = 0;
 
-let distance = 0;  //meters covered
-let effect = null; //{ speed, endsAt } while a boost or slowdown is active
+let distance = 0;
+let scrollY = 0;                 
+let marbleY = 0;                 // Absolute screen position (not an offset anymore)
+let marbleMinY = 0;              // Top of the screen
+let marbleMaxY = 0;              // Just above the question box
+let effect = null;               
 let lastTime = null;
 let racing = false;
 
@@ -32,15 +36,12 @@ function say(text, kind = '') {
     searchID('feedback').className = 'feedback ' + kind;
 }
 
-function announce(name, detail = {}) {//currently not used,
-//  but could be useful for a future multiplayer version and for other funcitonalities 
+function announce(name, detail = {}) {
     document.dispatchEvent(new CustomEvent(name, { detail }));
 }
 
-//track, landscape, finish line, marble
-const canvas = searchID('canvas');//canvas has default width and height of 300x150
-const context = canvas.getContext('2d');//get the 2d rendering context for the canvas,
-//  which is used to draw graphics on the canvas element.
+const canvas = searchID('canvas');
+const context = canvas.getContext('2d');
 
 const landscape = new Image();
 landscape.src = 'images/landscape.png';
@@ -48,12 +49,12 @@ landscape.src = 'images/landscape.png';
 const track = new Image();
 track.src = 'images/track.png';
 
-let imagesLoaded = 0;//used for tracking the # of images that have finished loading.
+let imagesLoaded = 0;
 
-function onImageLoaded() {//called once by each image's onload event
+function onImageLoaded() {
     imagesLoaded++;
     if (imagesLoaded === 2) {
-        drawRace();   // first picture as soon as both images are ready
+        drawRace();   
     }
 }
 landscape.onload = onImageLoaded;
@@ -62,19 +63,33 @@ track.onload = onImageLoaded;
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    // Recalculate marble limits based on the new window size
+    const gameBox = document.querySelector('.game');
+    const gameTop = gameBox ? gameBox.getBoundingClientRect().top : canvas.height * 0.75;
+
+    marbleMinY = canvas.height * 0.1; 
+    marbleMaxY = gameTop - (canvas.height * 0.05); // Stay 5% of screen height above the box
+
+    // If it's the very first load, set the starting position
+    if (marbleY === 0) {
+        // Start it just above the max limit (the question box)
+        marbleY = marbleMaxY - (canvas.height * 0.1);
+    } else {
+        // If resizing, keep the marble within the new bounds
+        marbleY = Math.max(marbleMinY, Math.min(marbleY, marbleMaxY));
+    }
+
     drawRace();
 }
 
 function drawRace() {
-    if (imagesLoaded < 2) {
-        return;
-    }
+    if (imagesLoaded < 2) return;
 
     const cw = canvas.width;
     const ch = canvas.height;
     context.clearRect(0, 0, cw, ch);
 
-    // Scale everything down if the screen is too narrow for landscape + track + landscape
     const scale = Math.min(1, cw / (landscape.width * 2 + track.width)) * ZOOM;
     const trackW = track.width * scale;
     const trackH = track.height * scale;
@@ -82,19 +97,13 @@ function drawRace() {
     const landH = landscape.height * scale;
     const trackX = (cw - trackW) / 2;
 
-    // The background position comes from the marble's distance, not from time
-    // (zoomed out = everything smaller, so it also scrolls fewer pixels per meter)
-    const pixelsPerMeter = PIXELS_PER_METER * scale;
-    const scrollY = distance * pixelsPerMeter;
-
-    // Track: centered, tiled vertically, scrolling
+    // Background Tiling
     const trackStartY = ((ch - trackH) / 2 + scrollY % trackH) % trackH - trackH;
     const trackCopies = Math.ceil(ch / trackH) + 2;
     for (let i = 0; i < trackCopies; i++) {
         context.drawImage(track, trackX, trackStartY + i * trackH, trackW, trackH);
     }
 
-    // Landscape: left and right of the track
     const landStartY = ((ch - landH) / 2 + scrollY % landH) % landH - landH;
     const landCopies = Math.ceil(ch / landH) + 2;
     for (let i = 0; i < landCopies; i++) {
@@ -103,20 +112,20 @@ function drawRace() {
         context.drawImage(landscape, trackX + trackW, y, landW, landH);
     }
 
-    const marbleY = ch * MARBLE_Y;
-    drawFinishLine(trackX, trackW, marbleY, pixelsPerMeter);
+    // Finish line (locked to distance)
+    drawFinishLine(trackX, trackW, marbleY, PIXELS_PER_METER * scale);
+    
+    // Draw the marble at its absolute Y position
     drawMarble(cw / 2, marbleY, Math.max(10, trackW * 0.12));
 }
 
-// Checkered line across the track. It starts off-screen above the marble
-// and scrolls down until it reaches the marble at the end of the race.
 function drawFinishLine(trackX, trackW, marbleY, pixelsPerMeter) {
     const metersLeft = TRACK_METERS - distance;
     const y = marbleY - metersLeft * pixelsPerMeter;
     const square = trackW / 8;
 
     if (y < -square * 2 || y > canvas.height) {
-        return;   // not on screen yet
+        return;   
     }
 
     for (let row = 0; row < 2; row++) {
@@ -127,7 +136,6 @@ function drawFinishLine(trackX, trackW, marbleY, pixelsPerMeter) {
     }
 }
 
-// Placeholder marble until the real marble art is ready
 function drawMarble(x, y, radius) {
     context.beginPath();
     context.arc(x, y, radius, 0, Math.PI * 2);
@@ -137,9 +145,8 @@ function drawMarble(x, y, radius) {
     context.strokeStyle = '#14213d';
     context.stroke();
 }
-//called once 
+
 resizeCanvas();
-//resize the canvas when the window event resize is triggered
 window.addEventListener('resize', resizeCanvas);
 
 // ---- Race ----
@@ -153,36 +160,49 @@ function applyEffect(speed) {
 
 function render(speed) {
     searchID('hud').textContent = distance.toFixed(1) + ' / ' + TRACK_METERS + ' m  |  ' + speed + ' m/s';
-    drawRace();   // move the background, finish line, and marble
+    drawRace();   
 }
 
-function frame(now) {//main loop, called by requestAnimationFrame around 60 times per second
+function frame(now) {
     if (!racing) return;
-    if (lastTime === null) lastTime = now;//runs once,now is in ms
-
-    // seconds since the last frame, capped so a hidden tab can't cause a huge jump
-
-    const dt = Math.min((now - lastTime) / 1000, 0.1);//0.1 is capped to avoid a huge jump in
-    //  distance if the tab is hidden or the frame rate drops
-
+    if (lastTime === null) lastTime = now;
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
     const speed = currentSpeed(now);
+    
+    // 1. Advance the race distance
     distance = Math.min(distance + speed * dt, TRACK_METERS);
-    render(speed);
 
-    if (distance >= TRACK_METERS) {
-        finishRace();
-        return;
+    // 2. Background scroll: Always moves at a constant rate
+    scrollY += BG_SCROLL_SPEED * dt;
+
+    // 3. Marble movement: Only moves when an effect is active
+    if (effect && now < effect.endsAt) {
+        // Calculate how much faster/slower we are going compared to normal
+        const speedDiff = speed - BASE_SPEED;
+        // Move marble up (negative) on boost, down (positive) on slow
+        marbleY -= speedDiff * dt * PIXELS_PER_METER * 0.5;
+        
+        // Clamp marble so it never leaves the screen or goes under the UI
+        marbleY = Math.max(marbleMinY, Math.min(marbleY, marbleMaxY));
     }
+
+    render(speed);
+    if (distance >= TRACK_METERS) { finishRace(); return; }
     requestAnimationFrame(frame);
 }
 
-function startRace() {// called once at the start and again when the player clicks "Restart"
+function startRace() {
     distance = 0;
+    scrollY = 0;
     effect = null;
     lastTime = null;
     racing = true;
+    
+    // Spawn marble just above the question box
+    marbleY = marbleMaxY - (canvas.height * 0.05);
+
     searchID('answer').disabled = false;
     searchID('answer-form').querySelector('button').disabled = false;
     searchID('popup').hidden = true;
@@ -211,7 +231,6 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
-// The questions come from questions.js; this just shows the next one
 function newQuestion() {
     current = generateQuestion();
     searchID('question').textContent = current.text;
@@ -239,7 +258,6 @@ function tick() {
     if (left === 0) onTimeUp();
 }
 
-// Time ran out: slow the marble, keep the same question, restart the timer
 function onTimeUp() {
     stopTimer();
     if (!racing) return;
@@ -251,13 +269,11 @@ function onTimeUp() {
     startTimer();
 }
 
-
 searchID('answer-form').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!racing) return;
     const raw = searchID('answer').value.trim();
 
-    // Invalid input: show a message and keep the timer running
     if (!/^-?\d+$/.test(raw)) {
         say('Enter a whole number.', 'error');
         searchID('answer').focus();
@@ -272,7 +288,6 @@ searchID('answer-form').addEventListener('submit', (e) => {
         newQuestion();
         startTimer();
     } else {
-        // Wrong: slow the marble, clear the box, retry with the time that is left
         applyEffect(SLOW_SPEED);
         say('Not quite. Try again!', 'error');
         announce('question:answered', { correct: false });
@@ -280,7 +295,6 @@ searchID('answer-form').addEventListener('submit', (e) => {
         searchID('answer').focus();
     }
 });
-
 
 if (REQUIRE_LOGIN) {
     await requireLogin();
