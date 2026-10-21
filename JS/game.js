@@ -32,8 +32,22 @@ let lastTime = null;
 let racing = false;
 
 function say(text, kind = '') {
-    searchID('feedback').textContent = text;
-    searchID('feedback').className = 'feedback ' + kind;
+    const gameBox = document.querySelector('.game');
+    
+    // 1. Remove any existing glow classes
+    gameBox.classList.remove('glow-ok', 'glow-error');
+    
+    // 2. Trigger a browser reflow. 
+    // Reading the offsetWidth forces the browser to calculate the layout immediately,
+    // which "resets" the animation state.
+    void gameBox.offsetWidth; 
+
+    // 3. Add the new class back
+    if (kind === 'ok') {
+        gameBox.classList.add('glow-ok');
+    } else if (kind === 'error') {
+        gameBox.classList.add('glow-error');
+    }
 }
 
 function announce(name, detail = {}) {
@@ -64,17 +78,18 @@ function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Recalculate marble limits based on the new window size
+    // 1. Top bound: Just below the new top question box
     const gameBox = document.querySelector('.game');
-    const gameTop = gameBox ? gameBox.getBoundingClientRect().top : canvas.height * 0.75;
+    const gameBottom = gameBox ? gameBox.getBoundingClientRect().bottom : canvas.height * 0.15;
+    marbleMinY = gameBottom + (canvas.height * 0.05); 
 
-    marbleMinY = canvas.height * 0.1; 
-    marbleMaxY = gameTop - (canvas.height * 0.05); // Stay 5% of screen height above the box
+    // 2. Bottom bound: Keep the original bottom limit (90% of screen height)
+    marbleMaxY = canvas.height * 0.9; 
 
     // If it's the very first load, set the starting position
     if (marbleY === 0) {
-        // Start it just above the max limit (the question box)
-        marbleY = marbleMaxY - (canvas.height * 0.1);
+        // Start near the bottom, exactly like before
+        marbleY = marbleMaxY - (canvas.height * 0.05);
     } else {
         // If resizing, keep the marble within the new bounds
         marbleY = Math.max(marbleMinY, Math.min(marbleY, marbleMaxY));
@@ -204,7 +219,7 @@ function startRace() {
     marbleY = marbleMaxY - (canvas.height * 0.05);
 
     searchID('answer').disabled = false;
-    searchID('answer-form').querySelector('button').disabled = false;
+    //searchID('answer-form').querySelector('button').disabled = false;
     searchID('popup').hidden = true;
     say('');
     render(BASE_SPEED);
@@ -219,8 +234,8 @@ function finishRace() {
     stopMusic();
     stopTimer();
     searchID('answer').disabled = true;
-    searchID('answer-form').querySelector('button').disabled = true;
-    say('You crossed the finish line!', 'ok');
+    //searchID('answer-form').querySelector('button').disabled = true;
+    say('');
     searchID('popup').hidden = false;
     searchID('restart').focus();
     announce('race:finished', { meters: distance });
@@ -233,7 +248,12 @@ searchID('restart').addEventListener('click', () => {
 
 function newQuestion() {
     current = generateQuestion();
-    searchID('question').textContent = current.text;
+    
+    // Inject the math pieces into the DOM
+    searchID('q-num1').textContent = current.num1;
+    searchID('q-symbol').textContent = current.symbol;
+    searchID('q-num2').textContent = current.num2;
+    
     searchID('answer').value = '';
     searchID('answer').focus();
     announce('question:shown', current);
@@ -262,7 +282,7 @@ function onTimeUp() {
     stopTimer();
     if (!racing) return;
     applyEffect(SLOW_SPEED);
-    say("Time's up! Same question, try again.", 'error');
+    say('', 'error');
     searchID('answer').value = '';
     searchID('answer').focus();
     announce('timer:expired');
@@ -283,13 +303,13 @@ searchID('answer-form').addEventListener('submit', (e) => {
     if (Number(raw) === current.answer) {
         stopTimer();
         applyEffect(BOOST_SPEED);
-        say('Correct! Boost!', 'ok');
+        say('', 'ok');
         announce('question:answered', { correct: true });
         newQuestion();
         startTimer();
     } else {
         applyEffect(SLOW_SPEED);
-        say('Not quite. Try again!', 'error');
+        say('', 'error');
         announce('question:answered', { correct: false });
         searchID('answer').value = '';
         searchID('answer').focus();

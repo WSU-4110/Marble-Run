@@ -27,14 +27,14 @@ button {
 .timer {
     top: 20px;
     left: 20px;
-    width: 150px;
+    width: 160px;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column; /* Stack the elements vertically */
+    gap: 6px;
 }
 
 .timer-track {
-    flex: 1;
+    width: 100%; /* Take up full width of the container */
     background: #fff;
     border-radius: 5px;
 }
@@ -45,6 +45,15 @@ button {
     border-radius: 5px;
 }
 
+/* Update the HUD text style */
+.hud {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #14213d;
+    text-align: center;
+}
+
 .home-btn {
     top: 20px;
     right: 20px;
@@ -53,51 +62,74 @@ button {
 }
 
 /* Question bar (bottom middle) */
+/* Top Banner Question Box */
 .game {
-    bottom: 16px;
+    top: 20px;
     left: 0;
     right: 0;
     margin: 0 auto;
-    width: min(400px, 90%);
+    width: max-content; 
+    min-width: 320px;
+    padding: 8px 16px; /* Compact vertical padding */
+    background: #e5f0ff;
+    border-radius: 12px;
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px; /* Space between HUD (if present) and form */
 }
 
 .game p {
-    margin: 4px 0;
-}
-
-.hud,
-.feedback {
-    font-size: 0.8rem;
-    font-weight: 800;
-}
-
-.question {
-    font-size: 1.3rem;
-}
-
-.ok {
-    color: #1f7a4d;
-}
-
-.error {
-    color: #b3283c;
+    margin: 0;
 }
 
 #answer-form {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
 }
 
+/* The Math Problem Layout */
+.math-problem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.3rem; /* Slightly smaller text to keep it compact */
+    font-weight: 600;
+}
+
+.math-problem .equals {
+    margin: 0 4px;
+    color: #3d5a80;
+}
+
+/* Make the input look like part of the equation */
 #answer {
-    flex: 1;
+    width: 70px;
     padding: 6px;
+    font-size: 1.5rem;
+    font-family: 'Fredoka', sans-serif;
+    text-align: center;
+    border: 2px solid #3d5a80;
+    border-radius: 8px;
+    background: #fff;
+    color: #14213d;
+}
+
+#answer:focus {
+    outline: none;
+    border-color: #fca311;
 }
 
 button {
     background: #fca311;
     border: 0;
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 8px 16px;
+    font-size: 1.1rem;
     cursor: pointer;
 }
 
@@ -116,4 +148,49 @@ button {
 
 .popup[hidden] {
     display: none;
+}
+
+/* Base transition for the game box so it doesn't snap abruptly */
+.game {
+    transition: box-shadow 0.3s ease-out, transform 0.15s ease-out;
+}
+
+/* Green Glowing Pulse */
+@keyframes glow-green {
+    0% { 
+        box-shadow: 0 0 0px rgba(31, 122, 77, 0); 
+        transform: scale(1);
+    }
+    25% { 
+        box-shadow: 0 0 40px 15px rgba(31, 122, 77, 1), inset 0 0 25px rgba(31, 122, 77, 0.8); 
+        transform: scale(1.03);
+    }
+    100% { 
+        box-shadow: 0 0 0px rgba(31, 122, 77, 0); 
+        transform: scale(1);
+    }
+}
+
+/* Red Glowing Pulse */
+@keyframes glow-red {
+    0% { 
+        box-shadow: 0 0 0px rgba(179, 40, 60, 0); 
+        transform: scale(1);
+    }
+    25% { 
+        box-shadow: 0 0 40px 15px rgba(179, 40, 60, 1), inset 0 0 25px rgba(179, 40, 60, 0.8); 
+        transform: scale(1.03);
+    }
+    100% { 
+        box-shadow: 0 0 0px rgba(179, 40, 60, 0); 
+        transform: scale(1);
+    }
+}
+
+.glow-ok {
+    animation: glow-green 1.2s ease-out;
+}
+
+.glow-error {
+    animation: glow-red 1.2s ease-out;
 }
