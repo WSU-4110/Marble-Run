@@ -4,11 +4,17 @@ const music = new Audio('audio/race_music.mp3');
 music.loop = true;
 
 let shouldPlay = false;
+let duckFactor = 1;
 
 // Reads the saved settings and applies them to the audio
 export function applyMusicSettings() {
     const settings = getSettings();
-    music.volume = settings.muted ? 0 : settings.musicVolume / 100;
+    //music.volume = settings.muted ? 0 : settings.musicVolume / 100;
+    music.volume = settings.muted ? 0 : (settings.musicVolume / 100) * duckFactor;
+}
+export function setMusicDuckFactor(factor) {
+    duckFactor = Math.max(0, Math.min(1, factor));
+    applyMusicSettings();
 }
 
 export function startMusic() {
