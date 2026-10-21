@@ -3,6 +3,8 @@ import { generateQuestion } from './question.js';
 
 import { startMusic, stopMusic } from './music.js';
 
+import './sounds.js';
+
 const REQUIRE_LOGIN = true; // set to false to test this page without Supabase
 const QUESTION_SECONDS = 10;    
 const TRACK_METERS = 100;      
