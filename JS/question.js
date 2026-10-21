@@ -27,7 +27,9 @@ export function generateQuestion() {
   }
 
   return {
-    text: "What is ".concat(num1, " ", symbol, " ", num2, "?"),
+    num1: num1,
+    symbol: symbol,
+    num2: num2,
     answer: answer,
   };
 }
