@@ -44,9 +44,17 @@
                 <button class="primary" id="submit" type="submit">Log in</button>
                 <p class="msg" id="msg" role="status" aria-live="polite"></p>
             </form>
+            <button type="button" class="forgot-btn" id="forgot-btn">Forgot password?</button>
+            
+            <form id="forgot-form" class="hidden" novalidate>
+                <label for="forgot-email">Email for reset link</label>
+                <input id="forgot-email" type="email" required>
+                <button class="primary" type="submit">Send reset link</button>
+                <p class="msg" id="forgot-msg" role="status" aria-live="polite"></p>
+            </form>
         </section>
     </main>
-
+    <script type="module" src="js/forgot-password.js"></script>
     <script type="module" src="js/login.js"></script>
     <script>setTimeout(function () { document.body.classList.remove('checking'); }, 3000);</script>
 </body>
