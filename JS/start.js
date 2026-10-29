@@ -1,4 +1,4 @@
-import { requireLogin, logout } from './auth.js';
+import { requireLogin, logout, getProfile } from './auth.js';
 
 import { getSettings, saveSettings } from './settings.js';
 
@@ -78,5 +78,6 @@ if (REQUIRE_LOGIN) {
     const profile = await requireLogin(); // sends logged-out visitors to the login page
     if (profile) {
         document.getElementById('greeting').textContent = `Welcome, ${profile.display_name}!`;
+        $('coin-count').textContent = profile.coins ?? 0;
     }
 }
