@@ -161,6 +161,16 @@ h1 {
     z-index: 10;
 }
 
+.coins {
+    position: fixed;
+    top: 19px;
+    right: 215px;
+    padding: 8px 14px;
+    background: #fff;
+    border-radius: 999px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+}
 .shop-btn:hover {
     background: #fca311;
 }
