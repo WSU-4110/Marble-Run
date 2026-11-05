@@ -6,7 +6,7 @@ export function generateQuestion() {
   // const operation = Math.floor(Math.random() * (2 - 0 + 1)) + 0;
   let answer = 0;
   let symbol = 'x';
-  let operation = localStorage.getItem('operation') || 'addition';
+  let operation = JSON.parse(localStorage.getItem('operation')) || Array('addition');
   let difficulty = localStorage.getItem('difficulty') || 'easy';
 
   let num1 = 0;
@@ -44,7 +44,7 @@ export function generateQuestion() {
 
 
   // if it's division, it should only give whole number answers
-  if (operation === 'division') {
+  if (operation.includes('division')) {
     while (num2 === 0 || num1 % num2 != 0) {
       num1 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN + 1;
       num2 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN + 1;
@@ -61,19 +61,19 @@ export function generateQuestion() {
   }
 
 
-  if (operation === 'addition') {
+  if (operation.includes('addition')) {
     answer = num1 + num2;
     symbol = '+';
   }
-  else if (operation === 'subtraction') {
+  else if (operation.includes('subtraction')) {
     answer = num1 - num2;
     symbol = '-';
   }
-  else if (operation === 'multiplication') {
+  else if (operation.includes('multiplication')) {
     answer = num1 * num2;
     symbol = '*';
   }
-  else if (operation === 'division') {
+  else if (operation.includes('division')) {
     answer = num1 / num2;
     symbol = '/';
   }

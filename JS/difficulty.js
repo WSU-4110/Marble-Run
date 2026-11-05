@@ -3,22 +3,26 @@ const form = document.getElementById('level-form');
 form.addEventListener('submit', (event) => {
     event.preventDefault();
 
+    console.log("a");
+
     const difficulty = document.querySelector(
         'input[name="difficulty"]:checked'
     ).value;
 
-    const operation = document.querySelector(
+    const operationInput = document.querySelectorAll(
         'input[name="operation"]:checked'
-    ).value;
+    );
+
+    const operations = Array.from(operationInput).map(cb => cb.value);
 
     localStorage.setItem('difficulty', difficulty);
-    localStorage.setItem('operation', operation);
+    localStorage.setItem('operation', JSON.stringify(operations));
 
     window.location.href = 'start-screen.HTML';
 });
 
 const savedDifficulty = localStorage.getItem('difficulty') || 'easy';
-const savedOperation = localStorage.getItem('operation') || 'addition';
+const savedOperation = JSON.parse(localStorage.getItem('operation')) || Array('addition');
 
 document.querySelector(
   `input[name="difficulty"][value="${savedDifficulty}"]`
