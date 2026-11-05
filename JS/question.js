@@ -43,6 +43,15 @@ export function generateQuestion() {
   }
 
 
+  class CreateQuestion {
+    create() {
+      this.setOperands();
+      this.setAnswer();
+      this.setSymbol();
+    }
+  }
+
+
   // if it's division, it should only give whole number answers
   if (operation.includes('division')) {
     while (num2 === 0 || num1 % num2 != 0) {
