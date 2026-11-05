@@ -1,83 +1,100 @@
-import { requireLogin, logout, getProfile } from './auth.js';
+import { requireLogin, logout } from './auth.js';
 
 import { getSettings, saveSettings } from './settings.js';
 
-import { startMusic, applyMusicSettings } from './music.js';
+import { applyMusicSettings } from './music.js';
 
 const REQUIRE_LOGIN = true;
 const GAME_PAGE = 'racing-screen.html';
 
-const $ = (id) => document.getElementById(id);
+// Find every element this page uses once, up front, with a clear name for each.
+const ui = {
+    greeting: document.getElementById('greeting'),
+    coinCount: document.getElementById('coin-count'),
+    startButton: document.getElementById('start-btn'),
+    logoutButton: document.getElementById('logout-btn'),
+
+    settingsButton: document.getElementById('settings-btn'),
+    settingsModal: document.getElementById('settings-modal'),
+    settingsClose: document.getElementById('settings-close'),
+    muteAll: document.getElementById('mute-all'),
+    musicVolume: document.getElementById('music-volume'),
+    musicValue: document.getElementById('music-value'),
+    sfxVolume: document.getElementById('sfx-volume'),
+    sfxValue: document.getElementById('sfx-value'),
+};
 
 
-// Settings panel 
-const modal = $('settings-modal');
+// ---- Settings panel ----
 const settings = getSettings();
 
-function showValues() {
-    $('music-value').textContent = settings.musicVolume + '%';
-    $('sfx-value').textContent = settings.sfxVolume + '%';
+function showVolumeLabels() {
+    ui.musicValue.textContent = settings.musicVolume + '%';
+    ui.sfxValue.textContent = settings.sfxVolume + '%';
 }
 
 // Fill the controls with the saved values
-$('mute-all').checked = settings.muted;
-$('music-volume').value = settings.musicVolume;
-$('sfx-volume').value = settings.sfxVolume;
-showValues();
+ui.muteAll.checked = settings.muted;
+ui.musicVolume.value = settings.musicVolume;
+ui.sfxVolume.value = settings.sfxVolume;
+showVolumeLabels();
 
 // Save on every change
-$('mute-all').addEventListener('change', (e) => {
+ui.muteAll.addEventListener('change', (e) => {
     settings.muted = e.target.checked;
     saveSettings(settings);
     applyMusicSettings();
-
 });
-$('music-volume').addEventListener('input', (e) => {
+
+ui.musicVolume.addEventListener('input', (e) => {
     settings.musicVolume = Number(e.target.value);
-    showValues();
+    showVolumeLabels();
     saveSettings(settings);
     applyMusicSettings();
-
 });
-$('sfx-volume').addEventListener('input', (e) => {
+
+ui.sfxVolume.addEventListener('input', (e) => {
     settings.sfxVolume = Number(e.target.value);
-    showValues();
+    showVolumeLabels();
     saveSettings(settings);
 });
 
 function openSettings() {
-    modal.hidden = false;
-    $('settings-close').focus();
+    ui.settingsModal.hidden = false;
+    ui.settingsClose.focus();
 }
 
 function closeSettings() {
-    modal.hidden = true;
-    $('settings-btn').focus();   // return focus to the button that opened it
+    ui.settingsModal.hidden = true;
+    ui.settingsButton.focus();   // return focus to the button that opened it
 }
 
-$('settings-btn').addEventListener('click', openSettings);
-$('settings-close').addEventListener('click', closeSettings);
+ui.settingsButton.addEventListener('click', openSettings);
+ui.settingsClose.addEventListener('click', closeSettings);
 
-// Click on the dark backdrop closes it
-modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeSettings();
+// Clicking the dark backdrop closes it
+ui.settingsModal.addEventListener('click', (e) => {
+    if (e.target === ui.settingsModal) closeSettings();
 });
 
 // Escape closes it
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !modal.hidden) closeSettings();
+    if (e.key === 'Escape' && !ui.settingsModal.hidden) closeSettings();
 });
 
 
-$('start-btn').addEventListener('click', () => {
+// ---- Start / log out ----
+ui.startButton.addEventListener('click', () => {
     window.location.href = GAME_PAGE;
 });
-$('logout-btn').addEventListener('click', logout);
+ui.logoutButton.addEventListener('click', logout);
 
+
+// ---- Player info ----
 if (REQUIRE_LOGIN) {
     const profile = await requireLogin(); // sends logged-out visitors to the login page
     if (profile) {
-        document.getElementById('greeting').textContent = `Welcome, ${profile.display_name}!`;
-        $('coin-count').textContent = profile.coins ?? 0;
+        ui.greeting.textContent = `Welcome, ${profile.display_name}!`;
+        ui.coinCount.textContent = profile.coins ?? 0;
     }
 }
