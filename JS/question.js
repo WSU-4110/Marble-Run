@@ -18,6 +18,8 @@ export function generateQuestion() {
   let MIN2 = 0;
   let MAX2 = 0;
 
+  let chosenOperand = 'addition';
+
   if (difficulty === 'easy') {
     MIN = 0;
     MAX = 10;
@@ -42,50 +44,92 @@ export function generateQuestion() {
     MIN2 = 10;
   }
 
+  // Create question template
 
   class CreateQuestion {
-    create() {
+    static create() {
       this.setOperands();
       this.setAnswer();
       this.setSymbol();
     }
+     static setOperands() {
+        num1 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+        num2 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+     }
+     static setAnswer() {
+        throw new Error("Method 'setAnswer()' must be implemented.");
+     }
+     static setSymbol() {
+        throw new Error("Method 'setSymbol()' must be implemented.");
+     }
   }
 
+  // Use the create question template to create questions of various operands
 
-  // if it's division, it should only give whole number answers
-  if (operation.includes('division')) {
-    while (num2 === 0 || num1 % num2 != 0) {
+  class AdditionQuestion extends CreateQuestion {
+    static setAnswer() {
+      answer = num1 + num2;
+    }
+    static setSymbol() {
+      symbol = "+";
+    }
+  }
+
+  class SubtractionQuestion extends CreateQuestion {
+    static setAnswer() {
+      answer = num1 - num2;
+    }
+    static setSymbol() {
+      symbol = "-";
+    }
+  }
+
+  class MultiplicationQuestion extends CreateQuestion {
+    static setOperands() {
+      num1 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+      num2 = Math.floor(Math.random() * (MAX2 - MIN2 + 1)) + MIN2;
+    }
+    static setAnswer() {
+      answer = num1 * num2;
+    }
+    static setSymbol() {
+      symbol = "*";
+    }
+  }
+
+  class DivisionQuestion extends CreateQuestion {
+    static setOperands() {
+      while (num2 === 0 || num1 % num2 != 0) {
       num1 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN + 1;
       num2 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN + 1;
     }
-  }
-  else {
-    num1 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
-    if (operation === 'multiplication') {
-      num2 = Math.floor(Math.random() * (MAX2 - MIN2 + 1)) + MIN2;
     }
-    else {
-      num2 = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+    static setAnswer() {
+      answer = num1 / num2;
+    }
+    static setSymbol() {
+      symbol = "/";
     }
   }
 
 
-  if (operation.includes('addition')) {
-    answer = num1 + num2;
-    symbol = '+';
-  }
-  else if (operation.includes('subtraction')) {
-    answer = num1 - num2;
-    symbol = '-';
-  }
-  else if (operation.includes('multiplication')) {
-    answer = num1 * num2;
-    symbol = '*';
-  }
-  else if (operation.includes('division')) {
-    answer = num1 / num2;
-    symbol = '/';
-  }
+    // Finally, pick a random operation to use from the list of selected ones, and make a question with it.
+    chosenOperand = operation[Math.floor(Math.random() * operation.length)];
+
+    console.log(chosenOperand);
+
+    if (chosenOperand === "addition") {
+      AdditionQuestion.create();
+    }
+    if (chosenOperand === "subtraction") {
+      SubtractionQuestion.create();
+    }
+    if (chosenOperand === "multiplication") {
+      MultiplicationQuestion.create();
+    }
+    if (chosenOperand === "division") {
+      DivisionQuestion.create();
+    }
 
   return {
     num1: num1,
