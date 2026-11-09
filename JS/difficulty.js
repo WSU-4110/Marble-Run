@@ -7,24 +7,31 @@ form.addEventListener('submit', (event) => {
         'input[name="difficulty"]:checked'
     ).value;
 
-    const operation = document.querySelector(
+    const operationInput = document.querySelectorAll(
         'input[name="operation"]:checked'
-    ).value;
+    );
+
+    const operations = Array.from(operationInput).map(cb => cb.value);
 
     localStorage.setItem('difficulty', difficulty);
-    localStorage.setItem('operation', operation);
+    localStorage.setItem('operation', JSON.stringify(operations));
+
+    console.log("Saved difficulty as "+difficulty);
+    console.log("Saved operations as "+operations);
 
     window.location.href = 'start-screen.HTML';
 });
 
 const savedDifficulty = localStorage.getItem('difficulty') || 'easy';
-const savedOperation = localStorage.getItem('operation') || 'addition';
+const savedOperation = JSON.parse(localStorage.getItem('operation')) || Array('addition');
 
 document.querySelector(
   `input[name="difficulty"][value="${savedDifficulty}"]`
 ).checked = true;
 
+savedOperation.forEach((item) => {
 document.querySelector(
-  `input[name="operation"][value="${savedOperation}"]`
+  `input[name="operation"][value="${item}"]`
 ).checked = true;
+})
 
