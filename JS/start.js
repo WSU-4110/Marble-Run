@@ -1,6 +1,6 @@
 import { requireLogin, logout } from './auth.js';
 
-import { getSettings, saveSettings } from './settings.js';
+import { SettingsManager } from './settings.js';
 
 import { startMusic, applyMusicSettings } from './music.js';
 
@@ -12,7 +12,8 @@ const $ = (id) => document.getElementById(id);
 
 // Settings panel 
 const modal = $('settings-modal');
-const settings = getSettings();
+const settingsManager = SettingsManager.getInstance();
+const settings = settingsManager.getSettings();
 
 function showValues() {
     $('music-value').textContent = settings.musicVolume + '%';
@@ -28,21 +29,21 @@ showValues();
 // Save on every change
 $('mute-all').addEventListener('change', (e) => {
     settings.muted = e.target.checked;
-    saveSettings(settings);
+    settingsManager.saveSettings(settings);
     applyMusicSettings();
 
 });
 $('music-volume').addEventListener('input', (e) => {
     settings.musicVolume = Number(e.target.value);
     showValues();
-    saveSettings(settings);
+    settingsManager.saveSettings(settings);
     applyMusicSettings();
 
 });
 $('sfx-volume').addEventListener('input', (e) => {
     settings.sfxVolume = Number(e.target.value);
     showValues();
-    saveSettings(settings);
+    settingsManager.saveSettings(settings);
 });
 
 function openSettings() {

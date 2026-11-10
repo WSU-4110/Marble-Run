@@ -1,4 +1,4 @@
-import { getSettings } from './settings.js';
+import { SettingsManager } from './settings.js';
 
 const music = new Audio('audio/race_music.mp3');
 music.loop = true;
@@ -7,7 +7,8 @@ let shouldPlay = false;
 
 // Reads the saved settings and applies them to the audio
 export function applyMusicSettings() {
-    const settings = getSettings();
+    const settingsManager = SettingsManager.getInstance();
+    const settings = settingsManager.getSettings();
     music.volume = settings.muted ? 0 : settings.musicVolume / 100;
 }
 
