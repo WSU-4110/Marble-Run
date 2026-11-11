@@ -1,6 +1,7 @@
 import { requireLogin } from './auth.js';
 import { generateQuestion } from './question.js';
 import { initRace3D, setRaceState, resetRace3D } from './race3d.js';
+import { QuestionTimer } from './questionTimer.js';
 
 import { startMusic, stopMusic } from './music.js';
 
@@ -16,9 +17,7 @@ const EFFECT_MS = 1000;   // how long a boost or slowdown lasts
 
 const searchID = (id) => document.getElementById(id);//shortcut for document.getElementById
 
-let current = null;   // the question on screen: { text, answer }
-let timerId = null;
-let endTime = 0;
+let current = null;   // the question on screen: { num1, symbol, num2, answer }
 
 let distance = 0;
 let effect = null;               
@@ -88,7 +87,7 @@ function startRace() {
     say('');
     render(BASE_SPEED);
     newQuestion();
-    startTimer();
+    timer.start();
     startMusic();
     requestAnimationFrame(frame);
 }
@@ -96,7 +95,7 @@ function startRace() {
 function finishRace() {
     racing = false;
     stopMusic();
-    stopTimer();
+    timer.stop();
     searchID('answer').disabled = true;
     say('');
     searchID('popup').hidden = false;
@@ -122,35 +121,39 @@ function newQuestion() {
     announce('question:shown', current);
 }
 
-function startTimer() {
-    stopTimer();
-    endTime = Date.now() + QUESTION_SECONDS * 1000;
-    timerId = setInterval(tick, 50);
-    tick();
-}
-
-function stopTimer() {
-    clearInterval(timerId);
-}
-
-function tick() {
-    const left = Math.max(0, endTime - Date.now());
-    searchID('timer-bar').style.width = (left / (QUESTION_SECONDS * 1000)) * 100 + '%';
-    searchID('timer-bar').classList.toggle('low', left <= 1000);
-    searchID('timer-text').textContent = Math.ceil(left / 1000);
-    if (left === 0) onTimeUp();
-}
-
 function onTimeUp() {
-    stopTimer();
     if (!racing) return;
     applyEffect(SLOW_SPEED);
     say('', 'error');
     searchID('answer').value = '';
     searchID('answer').focus();
     announce('timer:expired');
-    startTimer();
+    timer.start();   // same question, fresh time
 }
+const LOW_TIME_MS = 1000;   
+
+class TimerBar {
+    constructor(barElement, textElement) {
+        this.barElement = barElement;
+        this.textElement = textElement;
+    }
+
+    onTick(msLeft, totalMs) {
+        this.barElement.style.width = (msLeft / totalMs) * 100 + '%';
+        this.barElement.classList.toggle('low', msLeft <= LOW_TIME_MS);
+        this.textElement.textContent = Math.ceil(msLeft / 1000);
+    }
+}
+
+class TimeoutPenalty {
+    onExpire() {
+        onTimeUp();
+    }
+}
+
+const timer = new QuestionTimer(QUESTION_SECONDS);
+timer.subscribe(new TimerBar(searchID('timer-bar'), searchID('timer-text')));
+timer.subscribe(new TimeoutPenalty());
 
 searchID('answer-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -164,12 +167,12 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 
     if (Number(raw) === current.answer) {
-        stopTimer();
+        timer.stop();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
         announce('question:answered', { correct: true });
         newQuestion();
-        startTimer();
+        timer.start();
     } else {
         applyEffect(SLOW_SPEED);
         say('', 'error');
