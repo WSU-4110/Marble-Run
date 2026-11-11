@@ -12,6 +12,7 @@
 </head>
 
 <body>
+    <!-- race3d.js draws the 3D scene into this canvas -->
     <canvas id="canvas"></canvas>
 
     <div class="timer" role="timer" aria-label="Time left">
@@ -24,9 +25,7 @@
 
     <a class="home-btn" href="start-screen.html">Home</a>
 
-        <main class="game">
-        
-
+    <main class="game">
         <form id="answer-form" novalidate>
             <!-- The Math Problem -->
             <div class="math-problem">
@@ -36,8 +35,6 @@
                 <span class="equals">=</span>
                 <input id="answer" type="text" inputmode="numeric" autocomplete="off" placeholder="?" aria-label="Your answer">
             </div>
-            
-            <!--<button class="answer-btn" type="submit">Answer</button>-->
         </form>
 
         <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
@@ -46,7 +43,16 @@
         </div>
     </main>
 
-    <!-- game.js runs the race, timer and canvas; it imports js/questions.js for the questions -->
+    <!-- NEW: tells the browser where "three" comes from. Must be ABOVE the module scripts. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <!-- game.js runs the race and timer; it imports js/race3d.js for the 3D view -->
     <script type="module" src="js/game.js"></script>
     <script type="module" src="js/coins.js"></script>
 </body>
