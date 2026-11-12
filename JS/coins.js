@@ -1,5 +1,6 @@
 // when they cross the finish line. Listens to the events game.js announces
 import { db } from './supabase.js';
+import { isGuest } from './auth.js';
 console.log('coins.js loaded');
 
 const COINS_PER_CORRECT = 1;   
@@ -20,7 +21,7 @@ document.addEventListener('race:restart', () => {
 // save to the database
 document.addEventListener('race:finished', async () => {
     const earned = coinsThisRace + FINISH_BONUS;
-
+    if (isGuest()) return;
     // Calls the add_coins function in Supabase (see add_coins.sql)
     const { data: newTotal, error } = await db.rpc('add_coins', { earned });
 

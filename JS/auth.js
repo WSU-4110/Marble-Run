@@ -1,9 +1,30 @@
 import { db } from './supabase.js';
 
-// The page everyone lands on after login. Change the file name here if you rename it.
 export const START_PAGE = 'start-screen.html';
 
+const GUEST_KEY = 'mmr-guest';
+
+const GUEST_PROFILE = {
+    id: 'guest',
+    display_name: 'Guest',
+    coins: 0,
+    equipped_marble: 'classic-orange',
+    equipped_landscape: 'grassland',
+    unlocked_items: ['classic-orange', 'grassland'],
+};
+
+export function startGuestSession() {
+    sessionStorage.setItem(GUEST_KEY, 'true');
+}
+
+// True if the current player is a guest
+export function isGuest() {
+    return sessionStorage.getItem(GUEST_KEY) === 'true';
+}
+
 export async function getProfile() {
+    if (isGuest()) return { ...GUEST_PROFILE };   // guests never touch the database
+
     const { data: { session } } = await db.auth.getSession();//get current session from supabase auth
     if (!session) return null;
     // Get the profile row for the current user. The profile row has the same id as the user.
@@ -20,7 +41,6 @@ export async function getProfile() {
     return data;
 }
 
-// Call at the top of game.js. Sends logged-out visitors back to the login page.
 export async function requireLogin() {
     const profile = await getProfile();
     if (!profile) {
@@ -32,6 +52,10 @@ export async function requireLogin() {
 }
 //logout the current user and send them back to the login page
 export async function logout() {
-    await db.auth.signOut();
+    if (isGuest()) {
+        sessionStorage.removeItem(GUEST_KEY);   // guests have no Supabase session to end
+    } else {
+        await db.auth.signOut();
+    }
     window.location.replace('index.html');
 }
