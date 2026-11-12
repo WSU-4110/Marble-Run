@@ -25,6 +25,11 @@ let effect = null;
 let lastTime = null;
 let racing = false;
 
+// Some stats that will be tracked
+let correctAnswers = 0;
+let wrongAnswers = 0;
+
+
 function say(text, kind = '') {//usde to show feedback to the player, like "correct" or "wrong"
     const gameBox = document.querySelector('.game');
     searchID('feedback').textContent = text;
@@ -76,10 +81,16 @@ function frame(now) {//rusn 60 times per second
 }
 
 function startRace() {
+
     distance = 0;
     effect = null;
     lastTime = null;
     racing = true;
+
+    totalTime = 0;
+    endingPlace = 1;
+    correctAnswers = 0;
+    wrongAnswers = 0;
 
     resetRace3D();
 
@@ -101,6 +112,12 @@ function finishRace() {
     say('');
     searchID('popup').hidden = false;
     searchID('restart').focus();
+    localStorage.setItem("correctAnswers", correctAnswers);
+    localStorage.setItem("wrongAnswers", wrongAnswers);
+
+    // !! This should be set to whatever place the player marble ends up in, but for now it will default to 1st as there are no bots. !!
+    localStorage.setItem("resultsPlace", 1);
+
     announce('race:finished', { meters: distance });
 }
 
@@ -167,12 +184,14 @@ searchID('answer-form').addEventListener('submit', (e) => {
         stopTimer();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
+        correctAnswers++;
         announce('question:answered', { correct: true });
         newQuestion();
         startTimer();
     } else {
         applyEffect(SLOW_SPEED);
         say('', 'error');
+        wrongAnswers++;
         announce('question:answered', { correct: false });
         searchID('answer').value = '';
         searchID('answer').focus();
