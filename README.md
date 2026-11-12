@@ -9,6 +9,9 @@ Anna Algobey
 Thomas Errico-Seaman
 Akaber Almahadi
 
+## Demo
+![Login page](/images/login-page.png) </br>
+![Account creation](/images/account-creation.png)
 
 ## Use Case Diagram
 ```mermaid
