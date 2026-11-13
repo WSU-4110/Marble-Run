@@ -2,16 +2,21 @@
 
 Wayne State University CSC 4110 project
 
-Members:
-Abubakar Babatunde
-Jacob Cabrera
-Anna Algobey
-Thomas Errico-Seaman
-Akaber Almahadi
+Members: Anna Algobay, Akaber Almahadi, Abubakar Babatunde, Jacob Cabrera, Thomas Errico-Seaman
 
-## Demo
-![Login page](/images/login-page.png) </br>
-![Account creation](/images/account-creation.png)
+## UI Overview
+### Login Page
+![Login page](/images/login-page.png)<br>
+### Account Creation
+![Account creation](/images/account-creation-page.png)<br>
+### Start Page
+![Start page](/images/start-page.png)<br>
+### Settings Menu
+![Settings menu](/images/settings-menu.png)<br>
+### Difficulty Page
+![Difficulty page](/images/difficulty-page.png)<br>
+### Marble Race
+![Marble race](/images/racing-page.png)<br>
 
 ## Use Case Diagram
 ```mermaid
