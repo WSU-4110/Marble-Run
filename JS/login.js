@@ -1,5 +1,7 @@
 import { db, isConfigured } from './supabase.js';
 import { getProfile, START_PAGE } from './auth.js';
+import { startGuestSession } from './auth.js';
+
 //healper function to get an element by id
 const searchId = (id) => document.getElementById(id);
 let mode = 'SI'; // 'SI' = log in, 'SU' = create account
@@ -89,5 +91,9 @@ async function checkExistingSession() {
     }
     document.body.classList.remove('checking');
 }
+document.getElementById('guest-btn').addEventListener('click', () => {
+    startGuestSession();
+    window.location.href = START_PAGE;
+});
 
 checkExistingSession();
