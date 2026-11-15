@@ -6,17 +6,19 @@ Members: Anna Algobay, Akaber Almahadi, Abubakar Babatunde, Jacob Cabrera, Thoma
 
 ## UI Overview
 ### Login Page
-![Login page](/images/login-page.png)<br>
+![Login page](/images/ui-overview/login-page.png)<br>
 ### Account Creation
-![Account creation](/images/account-creation-page.png)<br>
+![Account creation](/images/ui-overview/account-creation-page.png)<br>
 ### Start Page
-![Start page](/images/start-page.png)<br>
+![Start page](/images/ui-overview/start-page.png)<br>
 ### Settings Menu
-![Settings menu](/images/settings-menu.png)<br>
+![Settings menu](/images/ui-overview/settings-menu.png)<br>
+### In-game Shop
+![In-game Shop](/images/ui-overview/shop.png)<br>
 ### Difficulty Page
-![Difficulty page](/images/difficulty-page.png)<br>
+![Difficulty page](/images/ui-overview/difficulty-page.png)<br>
 ### Marble Race
-![Marble race](/images/racing-page.png)<br>
+![Marble race](/images/ui-overview/racing-page.png)<br>
 
 ## Use Case Diagram
 ```mermaid
