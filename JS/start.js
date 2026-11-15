@@ -1,5 +1,4 @@
-import { requireLogin, logout } from './auth.js';
-
+import { requireLogin, logout, isGuest} from './auth.js';
 import { getSettings, saveSettings } from './settings.js';
 
 import { applyMusicSettings } from './music.js';
@@ -24,8 +23,6 @@ const ui = {
     sfxValue: document.getElementById('sfx-value'),
 };
 
-
-// ---- Settings panel ----
 const settings = getSettings();
 
 function showVolumeLabels() {
@@ -87,6 +84,12 @@ document.addEventListener('keydown', (e) => {
 ui.startButton.addEventListener('click', () => {
     window.location.href = GAME_PAGE;
 });
+
+// Guests see "Log In" instead of "Log Out". The same logout() handles both:
+// for a guest it just ends the guest session and goes to the login page.
+if (isGuest()) {
+    ui.logoutButton.textContent = 'Log In';
+}
 ui.logoutButton.addEventListener('click', logout);
 
 
