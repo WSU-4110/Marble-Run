@@ -2,12 +2,13 @@ import * as THREE from 'three';
 
 const TRACK_WIDTH = 4;         
 const MARBLE_RADIUS = 0.45;     
-const MARBLE_IMAGE = 'images/marble1.jpg';   // image wrapped around the marble
+const MARBLE_IMAGE = 'images/marbles/marble1.jpg';   // image wrapped around the marble
 const EXTRA_TRACK = 30;         
 const CAMERA_BEHIND = 6;        // how far behind the marble the camera sits
 const CAMERA_HEIGHT = 2.6;      // how high the camera sits
 const CAMERA_LOOK_AHEAD = 6;    // how far ahead of the marble the camera looks
-const CAMERA_FOV = 60;          // camera field of view (higher = wider view)
+const CAMERA_FOV = 30;          // camera field of view (higher = wider view)
+const LANDSCAPE_TILE_METERS = 10; // width of one landscape image on the ground (bigger = fewer seams, but blurrier)
 
 const COLORS = {
     sky: 0xbfe3ff,
@@ -19,13 +20,19 @@ const COLORS = {
 };
 
 let renderer, scene, camera, marble, sun;
+let ground, track;              // kept so the shop's equipped images can be applied later
+let groundLength = 0, trackLength = 0;
 let trackMeters = 100;
 let distance = 0;
 
 
 
-export function initRace3D(canvas, options = {}) {
+// Builds the scene and resolves once every texture has loaded and the first frame is drawn,
+// so the page can stay hidden until then (no flash of plain colors / default images).
+// options.images = { marble, landscape, track } equipped image paths (optional).
+export async function initRace3D(canvas, options = {}) {
     trackMeters = options.trackMeters ?? 100;
+    const images = options.images ?? {};
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -37,15 +44,20 @@ export function initRace3D(canvas, options = {}) {
     camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 300);
 
     addLights();
-    addGround();
-    addTrack();
+    const loads = [
+        addGround(images.landscape),
+        addTrack(images.track),
+        addMarble(images.marble),
+    ];
     addFinishLine();
-    addMarble();
 
     resize();
     window.addEventListener('resize', resize);
 
-    
+    // Wait for the images, upload everything to the GPU, then draw the first frame.
+    await Promise.all(loads);
+    await renderer.compileAsync(scene, camera);
+    renderFrame();
     renderer.setAnimationLoop(renderFrame);
 }
 
@@ -57,10 +69,15 @@ export function resetRace3D() {
     distance = 0;
 }
 
-// Ready for the shop later: profiles.equipped_marble could pick the image here.
-export function setMarbleImage(url) {
-    if (!marble) return;
-    loadMarbleTexture(url, marble.material);
+// Swap in the player's equipped shop items: { marble, landscape, track } image paths.
+// Any category left out keeps its default image.
+export function setEquippedImages(images = {}) {
+    if (!marble) return Promise.resolve();
+    const loads = [];
+    if (images.marble) loads.push(loadMarbleTexture(images.marble, marble.material));
+    if (images.landscape) loads.push(loadRepeatingTexture(images.landscape, ground.material, LANDSCAPE_TILE_METERS, 300, groundLength));
+    if (images.track) loads.push(loadRepeatingTexture(images.track, track.material, TRACK_WIDTH, TRACK_WIDTH, trackLength));
+    return Promise.all(loads);
 }
 
 // ---------- scene setup ----------
@@ -79,32 +96,34 @@ function addLights() {
     scene.add(sun.target);
 }
 
-function addGround() {
+function addGround(imageUrl) {
     const length = trackMeters + EXTRA_TRACK + 200;
+    groundLength = length;
     const material = new THREE.MeshStandardMaterial({ color: COLORS.grass });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, length), material);
+    ground = new THREE.Mesh(new THREE.PlaneGeometry(300, length), material);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.02, -length / 2 + 60);
     ground.receiveShadow = true;
     scene.add(ground);
 
     // Reuse the 2D landscape art as a repeating ground texture (keeps the grass color if the image is missing).
-    loadRepeatingTexture('images/landscape.png', material, 12, 300, length);
+    return loadRepeatingTexture(imageUrl || 'images/landscapes/landscape.jpg', material, LANDSCAPE_TILE_METERS, 300, length);
 }
 
-function addTrack() {
+function addTrack(imageUrl) {
     const length = trackMeters + EXTRA_TRACK + 10;
+    trackLength = length;
     const centerZ = -length / 2 + 5;
 
     const material = new THREE.MeshStandardMaterial({ color: COLORS.track });
-    const track = new THREE.Mesh(new THREE.PlaneGeometry(TRACK_WIDTH, length), material);
+    track = new THREE.Mesh(new THREE.PlaneGeometry(TRACK_WIDTH, length), material);
     track.rotation.x = -Math.PI / 2;
     track.position.set(0, 0, centerZ);
     track.receiveShadow = true;
     scene.add(track);
 
     // Reuse the 2D track art, tiled along the length of the track.
-    loadRepeatingTexture('images/track.png', material, TRACK_WIDTH, TRACK_WIDTH, length);
+    return loadRepeatingTexture(imageUrl || 'images/tracks/track.png', material, TRACK_WIDTH, TRACK_WIDTH, length);
 }
 
 function addFinishLine() {
@@ -135,13 +154,13 @@ function addFinishLine() {
     scene.add(strip);
 }
 
-function addMarble() {
+function addMarble(imageUrl) {
     const material = new THREE.MeshStandardMaterial({ color: COLORS.marble, roughness: 0.3 });
     marble = new THREE.Mesh(new THREE.SphereGeometry(MARBLE_RADIUS, 32, 16), material);
     marble.castShadow = true;
     scene.add(marble);
 
-    loadMarbleTexture(MARBLE_IMAGE, material);
+    return loadMarbleTexture(imageUrl || MARBLE_IMAGE, material);
 }
 
 // ---------- every frame ----------
@@ -176,33 +195,41 @@ function resize() {
 // ---------- helpers ----------
 
 function loadRepeatingTexture(url, material, tileWidthMeters, areaWidthMeters, areaLengthMeters) {
-    new THREE.TextureLoader().load(
+    material.userData.url = url;   // the newest request wins (default vs. equipped image)
+    return new Promise((resolve) => new THREE.TextureLoader().load(
         url,
         (texture) => {
+            if (material.userData.url !== url) { texture.dispose(); resolve(); return; }
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();   // keeps the texture sharp when seen at a low angle
             const tileLengthMeters = tileWidthMeters * (texture.image.height / texture.image.width);
             texture.repeat.set(areaWidthMeters / tileWidthMeters, areaLengthMeters / tileLengthMeters);
             material.map = texture;
             material.color.set(0xffffff);   // show the image's real colors
             material.needsUpdate = true;
+            resolve();
         },
         undefined,
-        () => console.warn('Could not load ' + url + ', using a plain color instead.')
-    );
+        () => { console.warn('Could not load ' + url + ', using a plain color instead.'); resolve(); }
+    ));
 }
 
 function loadMarbleTexture(url, material) {
     // The image wraps around the ball like a world map, so a 2:1 image (e.g. 1024x512) fits best.
-    new THREE.TextureLoader().load(
+    material.userData.url = url;   // the newest request wins (default vs. equipped image)
+    return new Promise((resolve) => new THREE.TextureLoader().load(
         url,
         (texture) => {
+            if (material.userData.url !== url) { texture.dispose(); resolve(); return; }
             texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();   // keeps the texture sharp when seen at a low angle
             material.map = texture;
             material.color.set(0xffffff);   // show the image's real colors
             material.needsUpdate = true;
+            resolve();
         },
         undefined,
-        () => console.warn('Could not load ' + url + ', using a plain color instead.')
-    );
+        () => { console.warn('Could not load ' + url + ', using a plain color instead.'); resolve(); }
+    ));
 }

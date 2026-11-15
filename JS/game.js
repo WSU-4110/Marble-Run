@@ -1,6 +1,7 @@
 import { requireLogin } from './auth.js';
 import { generateQuestion } from './question.js';
 import { initRace3D, setRaceState, resetRace3D } from './race3d.js';
+import { getEquippedImages } from './equipped.js';
 
 import { startMusic, stopMusic } from './music.js';
 
@@ -42,9 +43,6 @@ function say(text, kind = '') {//usde to show feedback to the player, like "corr
 function announce(name, detail = {}) {//announces a event to the rest of game, used in sound.js and coin.js
     document.dispatchEvent(new CustomEvent(name, { detail }));
 }
-// race3d.js draws the track, marble, finish line and camera into the canvas.
-// This file only tells it how far the marble has gone and how fast it's moving.
-initRace3D(searchID('canvas'), { trackMeters: TRACK_METERS, baseSpeed: BASE_SPEED });
 
 function currentSpeed(now) {
     return effect && now < effect.endsAt ? effect.speed : BASE_SPEED;
@@ -179,7 +177,18 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 });
 
+// Look up the player's equipped shop items first, so the 3D scene loads them directly
+// instead of showing the default images and then swapping.
+let equippedImages = {};
 if (REQUIRE_LOGIN) {//start if logged in
-    await requireLogin();
+    const profile = await requireLogin();
+    if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
+    equippedImages = await getEquippedImages(profile);
 }
-startRace();//starts the race after page loads
+
+// race3d.js draws the track, marble, finish line and camera into the canvas.
+// This file only tells it how far the marble has gone and how fast it's moving.
+// Wait until every texture is loaded and the first frame is drawn before showing the page.
+await initRace3D(searchID('canvas'), { trackMeters: TRACK_METERS, baseSpeed: BASE_SPEED, images: equippedImages });
+document.body.classList.remove('loading');
+startRace();//starts the race once everything is rendered
