@@ -2,27 +2,38 @@ import * as THREE from 'three';
 
 const TRACK_WIDTH = 4;         
 const MARBLE_RADIUS = 0.45;     
-const MARBLE_IMAGE = 'images/marble1.jpg';   // image wrapped around the marble
+const MARBLE_IMAGE = 'images/marble1.jpg';
 const EXTRA_TRACK = 30;         
-const CAMERA_BEHIND = 6;        // how far behind the marble the camera sits
-const CAMERA_HEIGHT = 2.6;      // how high the camera sits
-const CAMERA_LOOK_AHEAD = 6;    // how far ahead of the marble the camera looks
-const CAMERA_FOV = 60;          // camera field of view (higher = wider view)
+const CAMERA_BEHIND = 6;        
+const CAMERA_HEIGHT = 2.6;      
+const CAMERA_LOOK_AHEAD = 6;    
+const CAMERA_FOV = 60;          
+
+// Three lanes divided evenly across the original TRACK_WIDTH.
+// Adjusted slightly from exact thirds to line up with the image's lane markings.
+const LANES = [
+    { offset: 0, isBot: false },                             // player - center
+    { offset: -TRACK_WIDTH / 3.3, isBot: true },             // bot 1 - left
+    { offset: TRACK_WIDTH / 3.3, isBot: true },              // bot 2 - right
+];
 
 const COLORS = {
     sky: 0xbfe3ff,
     grass: 0x7cc46b,
     track: 0xd9c9a3,
-    marble: 0xfca311,           // shown until the marble image loads, or if it's missing
+    marble: 0xfca311,
+    bot1: 0x3c73f1,   // blue bot
+    bot2: 0xae0a0f,   // red bot
     finishDark: '#14213d',
     finishLight: '#ffffff',
 };
 
-let renderer, scene, camera, marble, sun;
+let renderer, scene, camera, sun;
 let trackMeters = 100;
 let distance = 0;
 
-
+const marbles = new Map();
+let botStates = [];
 
 export function initRace3D(canvas, options = {}) {
     trackMeters = options.trackMeters ?? 100;
@@ -40,12 +51,11 @@ export function initRace3D(canvas, options = {}) {
     addGround();
     addTrack();
     addFinishLine();
-    addMarble();
+    addMarbles();
 
     resize();
     window.addEventListener('resize', resize);
 
-    
     renderer.setAnimationLoop(renderFrame);
 }
 
@@ -53,14 +63,19 @@ export function setRaceState(newDistance) {
     distance = newDistance;
 }
 
-export function resetRace3D() {
-    distance = 0;
+export function setBotStates(bots) {
+    botStates = bots;
 }
 
-// Ready for the shop later: profiles.equipped_marble could pick the image here.
+export function resetRace3D() {
+    distance = 0;
+    botStates = [];
+}
+
 export function setMarbleImage(url) {
-    if (!marble) return;
-    loadMarbleTexture(url, marble.material);
+    const player = marbles.get(0);
+    if (!player) return;
+    loadMarbleTexture(url, player.material);
 }
 
 // ---------- scene setup ----------
@@ -88,7 +103,6 @@ function addGround() {
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Reuse the 2D landscape art as a repeating ground texture (keeps the grass color if the image is missing).
     loadRepeatingTexture('images/landscape.png', material, 12, 300, length);
 }
 
@@ -103,14 +117,12 @@ function addTrack() {
     track.receiveShadow = true;
     scene.add(track);
 
-    // Reuse the 2D track art, tiled along the length of the track.
     loadRepeatingTexture('images/track.png', material, TRACK_WIDTH, TRACK_WIDTH, length);
 }
 
 function addFinishLine() {
     const z = -trackMeters;
 
-    // Checkered strip on the track (8 squares across, 2 rows, like the 2D version).
     const size = 64;
     const canvas = document.createElement('canvas');
     canvas.width = size * 8;
@@ -135,37 +147,58 @@ function addFinishLine() {
     scene.add(strip);
 }
 
-function addMarble() {
-    const material = new THREE.MeshStandardMaterial({ color: COLORS.marble, roughness: 0.3 });
-    marble = new THREE.Mesh(new THREE.SphereGeometry(MARBLE_RADIUS, 32, 16), material);
-    marble.castShadow = true;
-    scene.add(marble);
+function addMarbles() {
+    LANES.forEach((lane, index) => {
+        let color;
+        if (index === 0) {
+            color = COLORS.marble;
+        } else if (index === 1) {
+            color = COLORS.bot1;
+        } else {
+            color = COLORS.bot2;
+        }
 
-    loadMarbleTexture(MARBLE_IMAGE, material);
+        const material = new THREE.MeshStandardMaterial({
+            color,
+            roughness: 0.3,
+        });
+        const marble = new THREE.Mesh(
+            new THREE.SphereGeometry(MARBLE_RADIUS, 32, 16),
+            material
+        );
+        marble.castShadow = true;
+        marble.position.set(lane.offset, MARBLE_RADIUS, 0);
+        scene.add(marble);
+        marbles.set(index, marble);
+
+        // Marble designs
+        if (index === 0 || index === 1 || index === 2) {
+            loadMarbleTexture(MARBLE_IMAGE, material);
+        }
+    });
 }
 
 // ---------- every frame ----------
 
 function renderFrame() {
-    // Marble position comes straight from game.js's distance.
-    const marbleZ = -distance;
-    marble.position.set(0, MARBLE_RADIUS, marbleZ);
-    // Spin so it looks like it's rolling: 1 radian per radius of distance traveled.
-    marble.rotation.x = -distance / MARBLE_RADIUS;
+    const player = marbles.get(0);
+    if (player) {
+        const playerZ = -distance;
+        player.position.set(0, MARBLE_RADIUS, playerZ);
+        player.rotation.x = -distance / MARBLE_RADIUS;
+    }
 
-    // Camera stays a fixed distance behind and above the marble.
-    camera.position.set(0, CAMERA_HEIGHT, marbleZ + CAMERA_BEHIND);
-    camera.lookAt(0, MARBLE_RADIUS, marbleZ - CAMERA_LOOK_AHEAD);
+    const playerZ = -distance;
+    camera.position.set(0, CAMERA_HEIGHT, playerZ + CAMERA_BEHIND);
+    camera.lookAt(0, MARBLE_RADIUS, playerZ - CAMERA_LOOK_AHEAD);
 
-    // Keep the sun's shadow area centered on the marble.
-    sun.position.set(5, 12, marbleZ + 6);
-    sun.target.position.set(0, 0, marbleZ);
+    sun.position.set(5, 12, playerZ + 6);
+    sun.target.position.set(0, 0, playerZ);
 
     renderer.render(scene, camera);
 }
 
 function resize() {
-    // Always fill the whole window, even if the page's CSS doesn't size the canvas.
     const width = window.innerWidth;
     const height = window.innerHeight;
     renderer.setSize(width, height);
@@ -184,7 +217,7 @@ function loadRepeatingTexture(url, material, tileWidthMeters, areaWidthMeters, a
             const tileLengthMeters = tileWidthMeters * (texture.image.height / texture.image.width);
             texture.repeat.set(areaWidthMeters / tileWidthMeters, areaLengthMeters / tileLengthMeters);
             material.map = texture;
-            material.color.set(0xffffff);   // show the image's real colors
+            material.color.set(0xffffff);
             material.needsUpdate = true;
         },
         undefined,
@@ -193,13 +226,12 @@ function loadRepeatingTexture(url, material, tileWidthMeters, areaWidthMeters, a
 }
 
 function loadMarbleTexture(url, material) {
-    // The image wraps around the ball like a world map, so a 2:1 image (e.g. 1024x512) fits best.
     new THREE.TextureLoader().load(
         url,
         (texture) => {
             texture.colorSpace = THREE.SRGBColorSpace;
             material.map = texture;
-            material.color.set(0xffffff);   // show the image's real colors
+            material.color.set(0xffffff);
             material.needsUpdate = true;
         },
         undefined,
