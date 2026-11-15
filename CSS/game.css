@@ -137,6 +137,15 @@ button {
     font-size: 1.5rem;
     padding: 16px 40px;
 }
+.popup-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+
+
+
 
 .popup {
     position: fixed;

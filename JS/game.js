@@ -109,6 +109,10 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
+searchID('home').addEventListener('click', () => {
+    window.location.href = 'start-screen.HTML';
+});
+
 function newQuestion() {
     current = generateQuestion();
     
