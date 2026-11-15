@@ -1,15 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Marble Race - Shop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/shop.css">
 </head>
+
 <body>
-    <main>
-        <header class="intro">
-            <h1>Math Marble Race - Shop Screen</h1>
-        </header>
+    <header class="shop-top">
+        <a class="back-btn" href="start-screen.HTML">← Back</a>
+        <h1>Shop</h1>
+        <div class="coins" aria-label="Your coins">🪙 <span id="coin-count">0</span></div>
+    </header>
+
+    <main class="shop">
+        <p class="guest-note" id="guest-note" hidden>
+            You're playing as a guest. <a href="index.html">Log in</a> to earn and spend coins.
+        </p>
+
+        <div class="tabs" role="tablist" aria-label="Item categories">
+            <button class="tab" role="tab" type="button" data-category="marble" aria-selected="true">Marbles</button>
+            <button class="tab" role="tab" type="button" data-category="landscape" aria-selected="false">Landscapes</button>
+            <button class="tab" role="tab" type="button" data-category="track" aria-selected="false">Tracks</button>
+        </div>
+
+        <p class="msg" id="shop-msg" role="status" aria-live="polite"></p>
+
+        <section class="grid" id="item-grid" role="tabpanel" aria-live="polite">
+            <p class="loading">Loading shop…</p>
+        </section>
     </main>
+
+    <!-- Purchase confirmation -->
+    <div class="modal" id="confirm-modal" hidden>
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+            <h2 id="confirm-title">Buy item?</h2>
+            <div class="confirm-preview" id="confirm-preview"></div>
+            <p id="confirm-text"></p>
+            <div class="modal-actions">
+                <button class="btn ghost" id="confirm-cancel" type="button">Cancel</button>
+                <button class="btn buy" id="confirm-buy" type="button">Buy</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/shop.js"></script>
 </body>
+
 </html>
