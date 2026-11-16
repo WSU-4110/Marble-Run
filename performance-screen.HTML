@@ -12,12 +12,9 @@
 </head>
 
 <body>
-    <nav class="top-bar" aria-label="Account and settings">
+    <nav class="top-bar" aria-label="Coins">
     <div class="coins">🪙 <span id="coin-count">0</span></div>
-    <button class="top-btn" id="settings-btn" type="button">Settings</button>
-    <button class="top-btn" id="logout-btn" type="button">Log out</button>
     </nav>
-    <a class="shop-btn" href="shop-screen.HTML">Shop</a>
 
     <main class="start">
         <p class="greeting" id="greeting"></p>
@@ -26,16 +23,16 @@
 
         <section class="rules" aria-labelledby="rules-title">
             <ul>
-                <li>Placed in:</li>
-                <li>Correct Answers:</li>
-                <li>Wrong Answers:</li>
-                <li>Coins Earned:</li>
+                <li id="place">Placed in:</li>
+                <li id="correct">Correct Answers:</li>
+                <li id="wrong">Wrong Answers:</li>
+                <li id="coins">Coins Earned:</li>
             </ul>
         </section>
 
-        <a class="level-btn" href="difficulty-screen.HTML">Choose Level</a>
+        <a class="level-btn" href="start-screen.HTML">Go Home</a>
         
-        <button class="start-btn" id="start-btn" type="button">Start race</button>
+        <button class="start-btn" id="restart-btn" type="button">Race Again</button>
     </main>
 
 

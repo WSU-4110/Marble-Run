@@ -128,8 +128,8 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
-searchID('home').addEventListener('click', () => {
-    window.location.href = 'start-screen.HTML';
+searchID('results').addEventListener('click', () => {
+    window.location.href = 'performance-screen.HTML';
 });
 
 function newQuestion() {
