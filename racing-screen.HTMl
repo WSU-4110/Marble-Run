@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="css/game.css">
 </head>
 
-<body>
+<body class="loading">
+    <!-- Shown until game.js has loaded every texture and drawn the first frame -->
+    <div class="loading-screen" aria-live="polite">Loading race…</div>
+
     <!-- race3d.js draws the 3D scene into this canvas -->
     <canvas id="canvas"></canvas>
 
@@ -39,8 +42,11 @@
 
         <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
         <div class="popup" id="popup" hidden>
-            <button class="restart-btn" id="restart" type="button">Results</button>
+        <div class="popup-buttons">
+            <button class="restart-btn" id="restart" type="button">Restart</button>
+            <button class="restart-btn" id="home" type="button">Home</button>
         </div>
+</div>
     </main>
 
     <!-- NEW: tells the browser where "three" comes from. Must be ABOVE the module scripts. -->

@@ -137,6 +137,15 @@ button {
     font-size: 1.5rem;
     padding: 16px 40px;
 }
+.popup-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+
+
+
 
 .popup {
     position: fixed;
@@ -193,4 +202,21 @@ button {
 
 .glow-error {
     animation: glow-red 1.2s ease-out;
+}
+/* Loading screen: covers the race until the 3D scene is fully rendered */
+.loading-screen {
+    display: none;
+}
+
+body.loading .loading-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #bfe3ff;   /* same as the 3D sky */
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2rem;
+    color: #14213d;
 }

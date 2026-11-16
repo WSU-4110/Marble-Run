@@ -1,9 +1,10 @@
 import { requireLogin } from './auth.js';
 import { generateQuestion } from './question.js';
-import { initRace3D, setRaceState, resetRace3D } from './race3d.js';
-
+import { initRace3D, setRaceState, resetRace3D, setBotStates } from './race3d.js';
+import { QuestionTimer } from './questionTimer.js';
+import { BotFactory } from './bot.js';
+import { getEquippedImages } from './equipped.js';
 import { startMusic, stopMusic } from './music.js';
-
 import './sounds.js';
 
 const REQUIRE_LOGIN = true; 
@@ -12,18 +13,17 @@ const TRACK_METERS = 100;
 const BASE_SPEED = 3;           
 const BOOST_SPEED = 5;         
 const SLOW_SPEED = 1;           
-const EFFECT_MS = 1000;   // how long a boost or slowdown lasts
+const EFFECT_MS = 1000;
 
-const searchID = (id) => document.getElementById(id);//shortcut for document.getElementById
+const searchID = (id) => document.getElementById(id);
 
-let current = null;   // the question on screen: { text, answer }
-let timerId = null;
-let endTime = 0;
+let current = null;   // the question on screen: { num1, symbol, num2, answer }
 
 let distance = 0;
 let effect = null;               
 let lastTime = null;
 let racing = false;
+let bots = [];
 
 // Some stats that will be tracked
 let correctAnswers = 0;
@@ -33,10 +33,8 @@ let wrongAnswers = 0;
 function say(text, kind = '') {//usde to show feedback to the player, like "correct" or "wrong"
     const gameBox = document.querySelector('.game');
     searchID('feedback').textContent = text;
-    
     gameBox.classList.remove('glow-ok', 'glow-error');
     void gameBox.offsetWidth; 
-
     if (kind === 'ok') {
         gameBox.classList.add('glow-ok');
     } else if (kind === 'error') {
@@ -44,12 +42,9 @@ function say(text, kind = '') {//usde to show feedback to the player, like "corr
     }
 }
 
-function announce(name, detail = {}) {//announces a event to the rest of game, used in sound.js and coin.js
+function announce(name, detail = {}) {
     document.dispatchEvent(new CustomEvent(name, { detail }));
 }
-// race3d.js draws the track, marble, finish line and camera into the canvas.
-// This file only tells it how far the marble has gone and how fast it's moving.
-initRace3D(searchID('canvas'), { trackMeters: TRACK_METERS, baseSpeed: BASE_SPEED });
 
 function currentSpeed(now) {
     return effect && now < effect.endsAt ? effect.speed : BASE_SPEED;
@@ -64,15 +59,13 @@ function render(speed) {
     setRaceState(distance, speed);
 }
 
-function frame(now) {//rusn 60 times per second
+function frame(now) {
     if (!racing) return;
     if (lastTime === null) lastTime = now;
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
     const speed = currentSpeed(now);
-    
-    // Advance the race distance (the 3D view moves the marble to match)
     distance = Math.min(distance + speed * dt, TRACK_METERS);
 
     render(speed);
@@ -91,6 +84,7 @@ function startRace() {
     endingPlace = 1;
     correctAnswers = 0;
     wrongAnswers = 0;
+    bots = BotFactory.createBotsForLanes(3);
 
     resetRace3D();
 
@@ -99,7 +93,7 @@ function startRace() {
     say('');
     render(BASE_SPEED);
     newQuestion();
-    startTimer();
+    timer.start();
     startMusic();
     requestAnimationFrame(frame);
 }
@@ -107,7 +101,7 @@ function startRace() {
 function finishRace() {
     racing = false;
     stopMusic();
-    stopTimer();
+    timer.stop();
     searchID('answer').disabled = true;
     say('');
     searchID('popup').hidden = false;
@@ -126,48 +120,53 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
+searchID('home').addEventListener('click', () => {
+    window.location.href = 'start-screen.HTML';
+});
+
 function newQuestion() {
     current = generateQuestion();
-    
-    // Inject the math pieces into the DOM
     searchID('q-num1').textContent = current.num1;
     searchID('q-symbol').textContent = current.symbol;
     searchID('q-num2').textContent = current.num2;
-    
     searchID('answer').value = '';
     searchID('answer').focus();
     announce('question:shown', current);
 }
 
-function startTimer() {
-    stopTimer();
-    endTime = Date.now() + QUESTION_SECONDS * 1000;
-    timerId = setInterval(tick, 50);
-    tick();
-}
-
-function stopTimer() {
-    clearInterval(timerId);
-}
-
-function tick() {
-    const left = Math.max(0, endTime - Date.now());
-    searchID('timer-bar').style.width = (left / (QUESTION_SECONDS * 1000)) * 100 + '%';
-    searchID('timer-bar').classList.toggle('low', left <= 1000);
-    searchID('timer-text').textContent = Math.ceil(left / 1000);
-    if (left === 0) onTimeUp();
-}
-
 function onTimeUp() {
-    stopTimer();
     if (!racing) return;
     applyEffect(SLOW_SPEED);
     say('', 'error');
     searchID('answer').value = '';
     searchID('answer').focus();
     announce('timer:expired');
-    startTimer();
+    timer.start();   // same question, fresh time
 }
+const LOW_TIME_MS = 1000;   
+
+class TimerBar {
+    constructor(barElement, textElement) {
+        this.barElement = barElement;
+        this.textElement = textElement;
+    }
+
+    onTick(msLeft, totalMs) {
+        this.barElement.style.width = (msLeft / totalMs) * 100 + '%';
+        this.barElement.classList.toggle('low', msLeft <= LOW_TIME_MS);
+        this.textElement.textContent = Math.ceil(msLeft / 1000);
+    }
+}
+
+class TimeoutPenalty {
+    onExpire() {
+        onTimeUp();
+    }
+}
+
+const timer = new QuestionTimer(QUESTION_SECONDS);
+timer.subscribe(new TimerBar(searchID('timer-bar'), searchID('timer-text')));
+timer.subscribe(new TimeoutPenalty());
 
 searchID('answer-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -181,13 +180,13 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 
     if (Number(raw) === current.answer) {
-        stopTimer();
+        timer.stop();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
         correctAnswers++;
         announce('question:answered', { correct: true });
         newQuestion();
-        startTimer();
+        timer.start();
     } else {
         applyEffect(SLOW_SPEED);
         say('', 'error');
@@ -198,7 +197,18 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 });
 
+// Look up the player's equipped shop items first, so the 3D scene loads them directly
+// instead of showing the default images and then swapping.
+let equippedImages = {};
 if (REQUIRE_LOGIN) {//start if logged in
-    await requireLogin();
+    const profile = await requireLogin();
+    if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
+    equippedImages = await getEquippedImages(profile);
 }
-startRace();//starts the race after page loads
+
+// race3d.js draws the track, marble, finish line and camera into the canvas.
+// This file only tells it how far the marble has gone and how fast it's moving.
+// Wait until every texture is loaded and the first frame is drawn before showing the page.
+await initRace3D(searchID('canvas'), { trackMeters: TRACK_METERS, baseSpeed: BASE_SPEED, images: equippedImages });
+document.body.classList.remove('loading');
+startRace();//starts the race once everything is rendered
