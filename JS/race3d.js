@@ -7,7 +7,7 @@ const EXTRA_TRACK = 30;
 const CAMERA_BEHIND = 6;        // how far behind the marble the camera sits
 const CAMERA_HEIGHT = 2.6;      // how high the camera sits
 const CAMERA_LOOK_AHEAD = 6;    // how far ahead of the marble the camera looks
-const CAMERA_FOV = 30;          // camera field of view (higher = wider view)
+const CAMERA_FOV = 60;          // camera field of view (higher = wider view)
 const LANDSCAPE_TILE_METERS = 10; // width of one landscape image on the ground (bigger = fewer seams, but blurrier)
 
 // Three lanes divided evenly across the original TRACK_WIDTH.
@@ -219,6 +219,15 @@ function renderFrame() {
         const playerZ = -distance;
         player.position.set(0, MARBLE_RADIUS, playerZ);
         player.rotation.x = -distance / MARBLE_RADIUS;
+    }
+
+    for (const bot of botStates) {
+        const mesh = marbles.get(bot.laneIndex);
+        if (!mesh) continue;
+        const lane = LANES[bot.laneIndex];
+        const botZ = -bot.distance;
+        mesh.position.set(lane.offset, MARBLE_RADIUS, botZ);
+        mesh.rotation.x = -bot.distance / MARBLE_RADIUS;
     }
 
     const playerZ = -distance;

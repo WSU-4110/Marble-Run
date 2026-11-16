@@ -59,6 +59,8 @@ function applyEffect(speed) {
 function render(speed) {
     searchID('hud').textContent = distance.toFixed(1) + ' / ' + TRACK_METERS + ' m  |  ' + speed + ' m/s';
     setRaceState(distance, speed);
+    setBotStates(bots.map((b) => b.toState()));
+
 }
 
 function frame(now) {
@@ -69,6 +71,10 @@ function frame(now) {
 
     const speed = currentSpeed(now);
     distance = Math.min(distance + speed * dt, TRACK_METERS);
+
+    for (const bot of bots) {
+        bot.update(now, dt, TRACK_METERS);
+    }
 
     render(speed);
     if (distance >= TRACK_METERS) { finishRace(); return; }
