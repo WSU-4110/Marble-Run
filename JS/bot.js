@@ -24,6 +24,22 @@ class BotMarble {
             : this.baseSpeed;
     }
 
+    update(now, dt, trackMeters) {
+        if (this.finished) return;
+
+        if (now >= this.nextExpiry) {
+            this.onTimerExpired(now);
+            this.nextExpiry = now + this.timerMs;
+        }
+
+        const speed = this.currentSpeed(now);
+        this.distance = Math.min(this.distance + speed * dt, trackMeters);
+
+        if (this.distance >= trackMeters) {
+            this.finished = true;
+        }
+    }
+
     onTimerExpired() {
         throw new Error("onTimerExpired() must be implemented");
     }
