@@ -220,3 +220,39 @@ body.loading .loading-screen {
     font-size: 2rem;
     color: #14213d;
 }
+
+/* Fire Speed Boost Button */
+.fire-boost-btn {
+    position: fixed;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+
+    background: #fca311;
+    border: 3px solid #14213d;
+    font-size: 2rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 10;
+    cursor: pointer;
+    transition: opacity 0.3s, box-shadow 0.3s;
+}
+
+/* Locked or cooling down */
+.fire-boost-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Ready to use */
+.fire-boost-btn.ready {
+    opacity: 1;
+    box-shadow: 0 0 20px #ff6b00;
+}

@@ -15,6 +15,11 @@ const BOOST_SPEED = 5;
 const SLOW_SPEED = 1;           
 const EFFECT_MS = 1000;
 
+//speed boost
+const FIRE_BOOST_SPEED = 7;
+const FIRE_BOOST_DURATION = 3000;
+const FIRE_BOOST_COOLDOWN = 8000;
+
 const searchID = (id) => document.getElementById(id);
 
 let current = null;   // the question on screen: { num1, symbol, num2, answer }
@@ -29,6 +34,9 @@ let bots = [];
 let correctAnswers = 0;
 let wrongAnswers = 0;
 let unansweredQuestions = 0;
+let fireBoostUnlocked = false;
+let fireBoostEndsAt = 0;
+let fireBoostCooldownEndsAt = 0;
 let totalTime = 0;
 let endingPlace = 1;
 
@@ -53,9 +61,19 @@ function announce(name, detail = {}) {
     document.dispatchEvent(new CustomEvent(name, { detail }));
 }
 
+
 function currentSpeed(now) {
-    return effect && now < effect.endsAt ? effect.speed : BASE_SPEED;
+    // Fire Boost takes priority over other speed effects
+    if (now < fireBoostEndsAt) {
+        return FIRE_BOOST_SPEED;
+    }
+
+    // Normal speed effects from answering questions
+    return effect && now < effect.endsAt
+        ? effect.speed
+        : BASE_SPEED;
 }
+
 
 function applyEffect(speed) {
     effect = { speed, endsAt: performance.now() + EFFECT_MS };
@@ -70,6 +88,29 @@ function render(speed) {
 
 function frame(now) {
     if (!racing) return;
+
+   
+    if (fireBoostUnlocked && fireBoostCooldownEndsAt > 0) {
+        const fireButton = searchID('fire-boost');
+
+        const remaining = Math.max(
+            0,
+            Math.ceil((fireBoostCooldownEndsAt - now) / 1000)
+        );
+
+        if (remaining > 0) {
+            // Show seconds remaining
+            fireButton.textContent = remaining;
+        } else {
+            // Cooldown finished
+            fireBoostCooldownEndsAt = 0;
+            fireButton.textContent = '🔥';
+            fireButton.disabled = false;
+            fireButton.classList.add('ready');
+        }
+    }
+
+
     if (lastTime === null) lastTime = now;
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
@@ -100,6 +141,18 @@ function startRace() {
     wrongAnswers = 0;
     unansweredQuestions = 0;
     bots = BotFactory.createBotsForLanes(3);
+
+
+    fireBoostUnlocked = false;
+    fireBoostEndsAt = 0;
+    fireBoostCooldownEndsAt = 0;
+
+    const fireButton = searchID('fire-boost');
+    fireButton.disabled = true;
+    fireButton.classList.remove('ready');
+    fireButton.textContent = '🔥';
+
+
 
     resetRace3D();
 
@@ -204,6 +257,36 @@ searchID('restart').addEventListener('click', () => {
 
 
 
+
+searchID('fire-boost').addEventListener('click', () => {
+    if (!racing || !fireBoostUnlocked) return;
+
+    const now = performance.now();
+
+    // Prevent using the boost during cooldown
+    if (now < fireBoostCooldownEndsAt) return;
+
+    // Activate Fire Boost for 3 seconds
+    fireBoostEndsAt = now + FIRE_BOOST_DURATION;
+
+    // Start the cooldown
+    fireBoostCooldownEndsAt = now + FIRE_BOOST_COOLDOWN;
+
+    // Fade out and disable the button
+    const fireButton = searchID('fire-boost');
+    fireButton.disabled = true;
+    fireButton.classList.remove('ready');
+
+    fireButton.textContent = Math.ceil(FIRE_BOOST_COOLDOWN / 1000);
+
+    // Keep the answer box focused
+    searchID('answer').focus();
+});
+
+
+
+
+
 searchID('results').addEventListener('click', async () => {
     const resultsButton = searchID('results');
 
@@ -289,15 +372,28 @@ searchID('answer-form').addEventListener('submit', (e) => {
         return;
     }
 
+    
     if (Number(raw) === current.answer) {
         timer.stop();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
         correctAnswers++;
+
+        // Unlock Fire Boost after 3 correct answers
+        if (correctAnswers >= 3 && !fireBoostUnlocked) {
+            fireBoostUnlocked = true;
+
+            const fireButton = searchID('fire-boost');
+            fireButton.disabled = false;
+            fireButton.classList.add('ready');
+        }
+
         announce('question:answered', { correct: true });
         newQuestion();
         timer.start();
-    } else {
+    }
+
+    else {
         applyEffect(SLOW_SPEED);
         say('', 'error');
         wrongAnswers++;
