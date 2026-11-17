@@ -368,6 +368,7 @@ searchID('answer-form').addEventListener('submit', (e) => {
 
     if (!/^-?\d+$/.test(raw)) {
         say('Enter a whole number.', 'error');
+        searchID('answer').value = '';
         searchID('answer').focus();
         return;
     }

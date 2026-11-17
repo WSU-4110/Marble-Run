@@ -7,6 +7,10 @@ let raceResults = [];
 
 const PAGE_SIZE = 10;
 
+// Only the most recent races are kept and shown. The database also trims
+// anything older (see docs/sql/keep-last-30-races.sql), so keep these in sync.
+const MAX_RACES = 30;
+
 let currentPage = 1;
 let totalPages = 1;
 
@@ -196,7 +200,8 @@ async function loadProgress() {
             .from('race_results')
             .select('id, finished_at, correct, wrong, timeouts')
             .eq('user_id', profile.id)
-            .order('finished_at', { ascending: false });
+            .order('finished_at', { ascending: false })
+            .limit(MAX_RACES);
 
         if (error) throw error;
 
