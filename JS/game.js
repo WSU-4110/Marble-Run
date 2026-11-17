@@ -34,9 +34,15 @@ let bots = [];
 let correctAnswers = 0;
 let wrongAnswers = 0;
 let unansweredQuestions = 0;
+
+
 let fireBoostUnlocked = false;
 let fireBoostEndsAt = 0;
 let fireBoostCooldownEndsAt = 0;
+let speedBoostsOwned = 0;
+let raceVersion = 0;
+
+
 let totalTime = 0;
 let endingPlace = 1;
 
@@ -90,7 +96,7 @@ function frame(now) {
     if (!racing) return;
 
    
-    if (fireBoostUnlocked && fireBoostCooldownEndsAt > 0) {
+    if (fireBoostCooldownEndsAt > 0) {
         const fireButton = searchID('fire-boost');
 
         const remaining = Math.max(
@@ -105,11 +111,14 @@ function frame(now) {
             // Cooldown finished
             fireBoostCooldownEndsAt = 0;
             fireButton.textContent = '🔥';
-            fireButton.disabled = false;
-            fireButton.classList.add('ready');
+
+            // Only enable the button if boosts are available
+            fireBoostUnlocked = speedBoostsOwned > 0;
+
+            fireButton.disabled = !fireBoostUnlocked;
+            fireButton.classList.toggle('ready', fireBoostUnlocked);
         }
     }
-
 
     if (lastTime === null) lastTime = now;
     const dt = Math.min((now - lastTime) / 1000, 0.1);
@@ -129,6 +138,8 @@ function frame(now) {
 
 function startRace() {
 
+    raceVersion++;
+
     distance = 0;
     effect = null;
     lastTime = null;
@@ -142,14 +153,16 @@ function startRace() {
     unansweredQuestions = 0;
     bots = BotFactory.createBotsForLanes(3);
 
+    // Unlock the Fire Boost if the player owns at least one
+    fireBoostUnlocked = speedBoostsOwned > 0;
 
-    fireBoostUnlocked = false;
     fireBoostEndsAt = 0;
     fireBoostCooldownEndsAt = 0;
 
     const fireButton = searchID('fire-boost');
-    fireButton.disabled = true;
-    fireButton.classList.remove('ready');
+
+    fireButton.disabled = !fireBoostUnlocked;
+    fireButton.classList.toggle('ready', fireBoostUnlocked);
     fireButton.textContent = '🔥';
 
 
@@ -258,25 +271,50 @@ searchID('restart').addEventListener('click', () => {
 
 
 
-searchID('fire-boost').addEventListener('click', () => {
-    if (!racing || !fireBoostUnlocked) return;
+searchID('fire-boost').addEventListener('click', async () => {
+    if (!racing || !fireBoostUnlocked || speedBoostsOwned <= 0) return;
 
     const now = performance.now();
+    const currentRaceVersion = raceVersion;
 
     // Prevent using the boost during cooldown
     if (now < fireBoostCooldownEndsAt) return;
 
-    // Activate Fire Boost for 3 seconds
-    fireBoostEndsAt = now + FIRE_BOOST_DURATION;
-
-    // Start the cooldown
-    fireBoostCooldownEndsAt = now + FIRE_BOOST_COOLDOWN;
-
-    // Fade out and disable the button
     const fireButton = searchID('fire-boost');
+
+    // Disable the button while processing
     fireButton.disabled = true;
     fireButton.classList.remove('ready');
 
+    // Deduct one boost from Supabase
+    const { data, error } = await db.rpc('use_speed_boost');
+
+    if (error) {
+        console.error('Could not use speed boost:', error.message);
+
+        fireButton.disabled = false;
+        fireButton.classList.add('ready');
+
+        searchID('answer').focus();
+        return;
+    }
+
+    // Update the player's remaining boosts
+    speedBoostsOwned = data;
+    fireBoostUnlocked = speedBoostsOwned > 0;
+
+    // Don't activate if the race ended or restarted
+    if (!racing || currentRaceVersion !== raceVersion) return;
+
+    const boostTime = performance.now();
+
+    // Activate Fire Boost for 3 seconds
+    fireBoostEndsAt = boostTime + FIRE_BOOST_DURATION;
+
+    // Start the cooldown
+    fireBoostCooldownEndsAt = boostTime + FIRE_BOOST_COOLDOWN;
+
+    // Display cooldown
     fireButton.textContent = Math.ceil(FIRE_BOOST_COOLDOWN / 1000);
 
     // Keep the answer box focused
@@ -380,15 +418,6 @@ searchID('answer-form').addEventListener('submit', (e) => {
         say('', 'ok');
         correctAnswers++;
 
-        // Unlock Fire Boost after 3 correct answers
-        if (correctAnswers >= 3 && !fireBoostUnlocked) {
-            fireBoostUnlocked = true;
-
-            const fireButton = searchID('fire-boost');
-            fireButton.disabled = false;
-            fireButton.classList.add('ready');
-        }
-
         announce('question:answered', { correct: true });
         newQuestion();
         timer.start();
@@ -410,6 +439,7 @@ let equippedImages = {};
 if (REQUIRE_LOGIN) {//start if logged in
     const profile = await requireLogin();
     if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
+    speedBoostsOwned = profile.speed_boosts ?? 0;
     equippedImages = await getEquippedImages(profile);
 }
 

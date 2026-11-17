@@ -274,3 +274,6 @@ body {
     display: flex;
     gap: 10px;
 }
+.preview.skill {
+    background: linear-gradient(135deg, #ffe0b2, #ff9800);
+}

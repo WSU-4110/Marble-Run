@@ -39,6 +39,10 @@ const state = {
 
 // ---------- Ownership helpers ----------
 function ownsItem(item) {
+    // Skills are consumable, so they can be purchased multiple times.
+    if (item.category === 'skill') {
+        return false;
+    }
     // price 0 items are free defaults that everyone owns
     return item.price === 0 || (state.profile.unlocked_items ?? []).includes(item.id);
 }
@@ -79,6 +83,11 @@ function makePreview(item) {
         preview.append(Object.assign(document.createElement('div'), { className: 'ball' }));
     } else if (item.category === 'track') {
         preview.append(Object.assign(document.createElement('div'), { className: 'lane' }));
+    } else if (item.category === 'skill') {
+        const icon = document.createElement('span');
+        icon.textContent = '🔥';
+        icon.style.fontSize = '4rem';
+        preview.append(icon);
     }
     return preview;
 }
@@ -129,7 +138,14 @@ function makeCard(item) {
         }
     }
 
-    card.append(makePreview(item), name, price, button);
+    card.append(makePreview(item), name, price);
+    if (item.id === 'speed-boost') {
+        const quantity = document.createElement('p');
+        quantity.textContent = `Owned: ${state.profile.speed_boosts ?? 0}`;
+        card.append(quantity);
+    }
+
+card.append(button);
     return card;
 }
 
@@ -165,21 +181,42 @@ function closeConfirm() {
 }
 
 async function buy(item) {
+    if (state.busy) return;
+
     state.busy = true;
     render();
 
-    // The server checks the price and coin balance; the page can't change those itself.
-    const { data, error } = await db.rpc('purchase_item', { p_item_id: item.id });
+    let data, error;
+
+    if (item.id === 'speed-boost') {
+        // Consumable skill purchase
+        ({ data, error } = await db.rpc('purchase_speed_boost'));
+    } else {
+        // Regular shop item purchase
+        ({ data, error } = await db.rpc('purchase_item', {
+            p_item_id: item.id
+        }));
+    }
 
     state.busy = false;
+
     if (error) {
         showMessage(error.message, 'error');
         render();
         return;
     }
 
+    // Update the player's coin balance
     state.profile.coins = data.coins;
-    state.profile.unlocked_items = data.unlocked_items;
+
+    if (item.id === 'speed-boost') {
+        // Increase the number of boosts owned
+        state.profile.speed_boosts = data.speed_boosts;
+    } else {
+        // Permanently unlock regular items
+        state.profile.unlocked_items = data.unlocked_items;
+    }
+
     showMessage(`You bought ${item.name}!`, 'ok');
     render();
 }
