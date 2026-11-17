@@ -13,6 +13,7 @@ const ui = {
     coinCount: document.getElementById('coin-count'),
     startButton: document.getElementById('start-btn'),
     logoutButton: document.getElementById('logout-btn'),
+    progressButton: document.getElementById('progress-btn'),
 
     settingsButton: document.getElementById('settings-btn'),
     settingsModal: document.getElementById('settings-modal'),
@@ -22,6 +23,7 @@ const ui = {
     musicValue: document.getElementById('music-value'),
     sfxVolume: document.getElementById('sfx-volume'),
     sfxValue: document.getElementById('sfx-value'),
+
 };
 
 
@@ -87,6 +89,11 @@ document.addEventListener('keydown', (e) => {
 ui.startButton.addEventListener('click', () => {
     window.location.href = GAME_PAGE;
 });
+
+ui.progressButton.addEventListener('click', () => {
+    window.location.href = 'performance-screen.html';
+});
+
 ui.logoutButton.addEventListener('click', logout);
 
 

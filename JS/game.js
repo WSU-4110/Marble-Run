@@ -1,4 +1,5 @@
 import { requireLogin } from './auth.js';
+import { db } from './supabase.js';
 import { generateQuestion } from './question.js';
 import { initRace3D, setRaceState, resetRace3D } from './race3d.js';
 
@@ -24,6 +25,12 @@ let distance = 0;
 let effect = null;               
 let lastTime = null;
 let racing = false;
+
+let correctAnswers = 0;
+let incorrectAnswers = 0;
+let unansweredQuestions = 0;
+let raceStartTime = 0;
+
 
 function say(text, kind = '') {//usde to show feedback to the player, like "correct" or "wrong"
     const gameBox = document.querySelector('.game');
@@ -80,6 +87,10 @@ function startRace() {
     effect = null;
     lastTime = null;
     racing = true;
+    correctAnswers = 0;
+    incorrectAnswers = 0;
+    unansweredQuestions = 0;
+    raceStartTime = performance.now();
 
     resetRace3D();
 
@@ -93,16 +104,63 @@ function startRace() {
     requestAnimationFrame(frame);
 }
 
+async function saveRaceResults(finishTime) {
+    const { data: { user }, error: authError } = await db.auth.getUser();
+
+    if (authError || !user) {
+        console.error('Could not identify the player:', authError);
+        return;
+    }
+
+    const operations = JSON.parse(localStorage.getItem('operation') || '["addition"]');
+
+    const { error } = await db.from('race_results').insert({
+        user_id: user.id,
+        finish_time: finishTime,
+        correct: correctAnswers,
+        wrong: incorrectAnswers,
+        timeouts: unansweredQuestions,
+        operation: operations.join(', ')
+    });
+
+    if (error) {
+        console.error('Could not save race results:', error.message);
+    } else {
+        console.log('Race results saved successfully!');
+    }
+}
+
 function finishRace() {
     racing = false;
     stopMusic();
     stopTimer();
     searchID('answer').disabled = true;
     say('');
+
+    const finishTime = Number(
+        ((performance.now() - raceStartTime) / 1000).toFixed(2)
+    );
+
+    const total = correctAnswers + incorrectAnswers + unansweredQuestions;
+    const score = total > 0
+        ? Math.round((correctAnswers / total) * 100)
+        : 0;
+
+    searchID('final-score').textContent = `Score: ${score}%`;
+
+    searchID('score-details').textContent =
+        `${correctAnswers} Correct | ${incorrectAnswers} Incorrect | ${unansweredQuestions} Unanswered`;
+
     searchID('popup').hidden = false;
     searchID('restart').focus();
+
+    saveRaceResults(finishTime);
+
     announce('race:finished', { meters: distance });
 }
+
+
+
 
 searchID('restart').addEventListener('click', () => {
     announce('race:restart');
@@ -148,6 +206,7 @@ function tick() {
 function onTimeUp() {
     stopTimer();
     if (!racing) return;
+    unansweredQuestions++;
     applyEffect(SLOW_SPEED);
     say('', 'error');
     searchID('answer').value = '';
@@ -168,6 +227,7 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 
     if (Number(raw) === current.answer) {
+        correctAnswers++;
         stopTimer();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
@@ -175,6 +235,7 @@ searchID('answer-form').addEventListener('submit', (e) => {
         newQuestion();
         startTimer();
     } else {
+        incorrectAnswers++;
         applyEffect(SLOW_SPEED);
         say('', 'error');
         announce('question:answered', { correct: false });
@@ -183,7 +244,12 @@ searchID('answer-form').addEventListener('submit', (e) => {
     }
 });
 
-if (REQUIRE_LOGIN) {//start if logged in
-    await requireLogin();
+if (REQUIRE_LOGIN) {
+    const profile = await requireLogin();
+
+    if (profile) {
+        startRace();
+    }
+} else {
+    startRace();
 }
-startRace();//starts the race after page loads

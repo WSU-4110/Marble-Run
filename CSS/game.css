@@ -203,3 +203,35 @@ button {
 .glow-error {
     animation: glow-red 1.2s ease-out;
 }
+
+.results-panel {
+    background: #e5f0ff;
+    padding: 30px 40px;
+    border-radius: 20px;
+    text-align: center;
+    color: #14213d;
+}
+
+.results-panel h2 {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+#final-score {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#score-details {
+    font-size: 1rem;
+    margin-bottom: 25px;
+}
+
+.popup-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
