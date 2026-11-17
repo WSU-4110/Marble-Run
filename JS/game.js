@@ -1,5 +1,5 @@
-import { requireLogin } from './auth.js';
-import { generateQuestion } from './question.js';
+import { requireLogin, isGuest } from './auth.js';
+import { db } from './supabase.js';import { generateQuestion } from './question.js';
 import { initRace3D, setRaceState, resetRace3D, setBotStates } from './race3d.js';
 import { QuestionTimer } from './questionTimer.js';
 import { BotFactory } from './bot.js';
@@ -28,8 +28,13 @@ let bots = [];
 // Some stats that will be tracked
 let correctAnswers = 0;
 let wrongAnswers = 0;
+let unansweredQuestions = 0;
 let totalTime = 0;
 let endingPlace = 1;
+
+let raceStartTime = 0;
+let raceSavePromise = null;
+let lastRaceResults = null;
 
 
 function say(text, kind = '') {//usde to show feedback to the player, like "correct" or "wrong"
@@ -89,9 +94,11 @@ function startRace() {
     racing = true;
 
     totalTime = 0;
+    raceStartTime = performance.now();
     endingPlace = 1;
     correctAnswers = 0;
     wrongAnswers = 0;
+    unansweredQuestions = 0;
     bots = BotFactory.createBotsForLanes(3);
 
     resetRace3D();
@@ -106,10 +113,57 @@ function startRace() {
     requestAnimationFrame(frame);
 }
 
+
+async function saveRaceResults(results) {
+    console.count('saveRaceResults called');
+    // Guests do not have an account to save results to.
+    if (isGuest()) return true;
+
+    try {
+        // Get the currently logged-in player.
+        const { data: { session }, error: authError } =
+            await db.auth.getSession();
+
+        if (authError) throw authError;
+
+        if (!session) {
+            throw new Error('No active login session.');
+        }
+
+        // Get the operations selected by the player.
+        const operations = JSON.parse(
+            localStorage.getItem('operation') || '["addition"]'
+        );
+
+        // Save the completed race to Supabase.
+        const { error } = await db.from('race_results').insert({
+            user_id: session.user.id,
+            finish_time: results.finishTime,
+            correct: results.correct,
+            wrong: results.wrong,
+            timeouts: results.timeouts,
+            operation: operations.join(', ')
+        });
+
+        if (error) throw error;
+
+        console.log('Race results saved successfully!');
+        return true;
+
+    } catch (error) {
+        console.error('Could not save race results:', error);
+        return false;
+    }
+}
+
+
 function finishRace() {
     racing = false;
     stopMusic();
     timer.stop();
+    totalTime = Number(
+    ((performance.now() - raceStartTime) / 1000).toFixed(2)
+    );
     searchID('answer').disabled = true;
     say('');
     searchID('popup').hidden = false;
@@ -117,9 +171,29 @@ function finishRace() {
     localStorage.setItem("correctAnswers", correctAnswers);
     localStorage.setItem("wrongAnswers", wrongAnswers);
 
-    // !! This should be set to whatever place the player marble ends up in, but for now it will default to 1st. !!
-    localStorage.setItem("resultsPlace", 1);
+    localStorage.setItem("unansweredQuestions", unansweredQuestions);
 
+    const totalQuestions = correctAnswers + wrongAnswers + unansweredQuestions;
+
+    const score = totalQuestions > 0
+        ? Math.round((correctAnswers / totalQuestions) * 100)
+        : 0;
+
+    localStorage.setItem("raceScore", score);
+
+    // !! This should be set to whatever place the player marble ends up in, but for now it will default to 1st. !!
+    endingPlace = 1 + bots.filter(bot => bot.finished).length;
+
+    localStorage.setItem("resultsPlace", endingPlace);
+    
+    lastRaceResults = {
+        finishTime: totalTime,
+        correct: correctAnswers,
+        wrong: wrongAnswers,
+        timeouts: unansweredQuestions
+    };
+
+    raceSavePromise = saveRaceResults(lastRaceResults);
     announce('race:finished', { meters: distance });
 }
 
@@ -128,9 +202,36 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
-searchID('results').addEventListener('click', () => {
+
+
+searchID('results').addEventListener('click', async () => {
+    const resultsButton = searchID('results');
+
+    resultsButton.disabled = true;
+    resultsButton.textContent = 'Saving...';
+
+    let saved = raceSavePromise
+        ? await raceSavePromise
+        : false;
+
+    // If the first save failed, try again.
+    if (!saved && lastRaceResults) {
+        raceSavePromise = saveRaceResults(lastRaceResults);
+        saved = await raceSavePromise;
+    }
+
+    if (!saved) {
+        alert('Could not save your race results. Please check your connection and try again.');
+
+        resultsButton.disabled = false;
+        resultsButton.textContent = 'Results';
+        return;
+    }
+
     window.location.href = 'performance-screen.HTML';
 });
+
+
 
 function newQuestion() {
     current = generateQuestion();
@@ -144,6 +245,7 @@ function newQuestion() {
 
 function onTimeUp() {
     if (!racing) return;
+    unansweredQuestions++;
     applyEffect(SLOW_SPEED);
     say('', 'error');
     searchID('answer').value = '';

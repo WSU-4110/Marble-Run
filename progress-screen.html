@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Math Marble Race - Progress Report</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+    rel="stylesheet">
+
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/progress.css">
+</head>
+
+<body>
+<main class="performance">
+
+    <a class="home-btn" href="start-screen.HTML">Home</a>
+
+    <header class="intro">
+        <h1>Progress Report</h1>
+        <p>Track your math performance over time!</p>
+    </header>
+
+    <!-- Summary cards -->
+    <section class="stats">
+        <div class="stat-card">
+            <h2>Average Score</h2>
+            <p id="average-score">--%</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>Total Races</h2>
+            <p id="total-races">0</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>Latest Score</h2>
+            <p id="latest-score">--%</p>
+        </div>
+    </section>
+
+    <!-- Tabs -->
+    <div class="report-tabs">
+        <button class="tab-btn active" id="progress-tab" type="button">
+            Score Progress
+        </button>
+
+        <button class="tab-btn" id="history-tab" type="button">
+            Race History
+        </button>
+    </div>
+
+    <!-- Score graph -->
+    <section class="progress-graph" id="progress-section">
+        <h2>Score Progress</h2>
+        <p>See how your scores change after each race.</p>
+
+        <div class="chart-container">
+            <canvas id="score-chart"></canvas>
+            <p id="chart-message" hidden>No races recorded yet.</p>
+        </div>
+    </section>
+
+    <!-- Race history -->
+    <section class="history" id="history-section" hidden>
+        <h2>Race History</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Score</th>
+                    <th>Correct</th>
+                    <th>Wrong</th>
+                    <th>Unanswered</th>
+                </tr>
+            </thead>
+
+            <tbody id="race-history"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button id="prev-page" type="button">Previous</button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="next-page" type="button">Next</button>
+        </div>
+    </section>
+
+</main>
+
+<!-- Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+<script type="module" src="js/progress.js"></script>
+</body>
+
+</html>

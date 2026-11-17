@@ -9,6 +9,20 @@ const correctAnswers = localStorage.getItem("correctAnswers") || "?";
 
 resultCorrect.textContent = "Correct answers: "+ correctAnswers;
 
+// Show the player's score
+const resultScore = document.getElementById('score');
+
+const score = localStorage.getItem("raceScore") ?? "0";
+
+resultScore.textContent = "Score: " + score + "%";
+
+// Show unanswered questions
+const resultUnanswered = document.getElementById('unanswered');
+
+const unansweredQuestions = localStorage.getItem("unansweredQuestions") ?? "0";
+
+resultUnanswered.textContent = "Unanswered questions: " + unansweredQuestions;
+
 // Show wrong answers
 
 const resultWrong = document.getElementById('wrong');
