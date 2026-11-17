@@ -21,6 +21,7 @@ document.addEventListener('race:restart', () => {
 // save to the database
 document.addEventListener('race:finished', async () => {
     const earned = coinsThisRace + FINISH_BONUS;
+    localStorage.setItem("coinsEarned", earned);
     if (isGuest()) return;
     // Calls the add_coins function in Supabase (see add_coins.sql)
     const { data: newTotal, error } = await db.rpc('add_coins', { earned });

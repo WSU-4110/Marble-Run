@@ -25,7 +25,14 @@ let lastTime = null;
 let racing = false;
 let bots = [];
 
-function say(text, kind = '') {
+// Some stats that will be tracked
+let correctAnswers = 0;
+let wrongAnswers = 0;
+let totalTime = 0;
+let endingPlace = 1;
+
+
+function say(text, kind = '') {//usde to show feedback to the player, like "correct" or "wrong"
     const gameBox = document.querySelector('.game');
     searchID('feedback').textContent = text;
     gameBox.classList.remove('glow-ok', 'glow-error');
@@ -75,11 +82,16 @@ function frame(now) {
 }
 
 function startRace() {
+
     distance = 0;
     effect = null;
     lastTime = null;
     racing = true;
 
+    totalTime = 0;
+    endingPlace = 1;
+    correctAnswers = 0;
+    wrongAnswers = 0;
     bots = BotFactory.createBotsForLanes(3);
 
     resetRace3D();
@@ -102,6 +114,12 @@ function finishRace() {
     say('');
     searchID('popup').hidden = false;
     searchID('restart').focus();
+    localStorage.setItem("correctAnswers", correctAnswers);
+    localStorage.setItem("wrongAnswers", wrongAnswers);
+
+    // !! This should be set to whatever place the player marble ends up in, but for now it will default to 1st. !!
+    localStorage.setItem("resultsPlace", 1);
+
     announce('race:finished', { meters: distance });
 }
 
@@ -110,8 +128,8 @@ searchID('restart').addEventListener('click', () => {
     startRace();
 });
 
-searchID('home').addEventListener('click', () => {
-    window.location.href = 'start-screen.HTML';
+searchID('results').addEventListener('click', () => {
+    window.location.href = 'performance-screen.HTML';
 });
 
 function newQuestion() {
@@ -173,12 +191,14 @@ searchID('answer-form').addEventListener('submit', (e) => {
         timer.stop();
         applyEffect(BOOST_SPEED);
         say('', 'ok');
+        correctAnswers++;
         announce('question:answered', { correct: true });
         newQuestion();
         timer.start();
     } else {
         applyEffect(SLOW_SPEED);
         say('', 'error');
+        wrongAnswers++;
         announce('question:answered', { correct: false });
         searchID('answer').value = '';
         searchID('answer').focus();

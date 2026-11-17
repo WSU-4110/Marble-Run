@@ -1,15 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Marble Race - Performance</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Math Marble Race - Results</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/start.css">
 </head>
+
 <body>
-    <main>
-        <header class="intro">
-            <h1>Math Marble Race - Performance Screen</h1>
-        </header>
+    <nav class="top-bar" aria-label="Coins">
+    <div class="coins">🪙 <span id="coin-count">0</span></div>
+    </nav>
+
+    <main class="start">
+        <p class="greeting" id="greeting"></p>
+        <h1>Results</h1>
+        <p class="lead">-------------</p>
+
+        <section class="rules" aria-labelledby="rules-title">
+            <ul>
+                <li id="place">Placed in:</li>
+                <li id="correct">Correct Answers:</li>
+                <li id="wrong">Wrong Answers:</li>
+                <li id="coins">Coins Earned:</li>
+            </ul>
+        </section>
+
+        <a class="level-btn" href="start-screen.HTML">Go Home</a>
+        
+        <button class="start-btn" id="restart-btn" type="button">Race Again</button>
     </main>
+
+
+    <script type="module" src="js/results.js"></script>
 </body>
+
 </html>
