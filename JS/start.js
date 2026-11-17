@@ -11,6 +11,7 @@ const ui = {
     greeting: document.getElementById('greeting'),
     coinCount: document.getElementById('coin-count'),
     startButton: document.getElementById('start-btn'),
+    progressButton: document.getElementById('progress-btn'),
     logoutButton: document.getElementById('logout-btn'),
 
     settingsButton: document.getElementById('settings-btn'),
@@ -83,6 +84,10 @@ document.addEventListener('keydown', (e) => {
 // ---- Start / log out ----
 ui.startButton.addEventListener('click', () => {
     window.location.href = GAME_PAGE;
+});
+
+ui.progressButton.addEventListener('click', () => {
+    window.location.href = 'progress-screen.html';
 });
 
 // Guests see "Log In" instead of "Log Out". The same logout() handles both:
