@@ -5,6 +5,11 @@ import {
     SpriteFlameStrategy,
     ParticleFlameStrategy,
 } from './flameStrategies.js';
+import {
+    FreezeContext,
+    IceCrystalFreezeStrategy,
+    FrostParticleFreezeStrategy,
+} from './freezeStrategies.js';
 
 const TRACK_WIDTH = 4;
 const MARBLE_RADIUS = 0.45;
@@ -53,6 +58,13 @@ let flameContext = null;
 let playerFlameAnchor = null;
 let _lastFlameTime = performance.now();
 
+// Freeze (Strategy pattern) — one context per bot lane. Each context has its
+// own non-rotating anchor that follows the bot marble so the ice cage
+// stays upright while the marble rolls.
+const freezeContexts = new Map();   // laneIndex -> { context, anchor }
+let freezeStrategyFactory = () => new IceCrystalFreezeStrategy();
+let _lastFreezeTime = performance.now();
+
 // Builds the scene and resolves once every texture has loaded and the first frame is drawn,
 // so the page can stay hidden until then (no flash of plain colors / default images).
 // options.images = { marble, landscape, track } equipped image paths (optional).
@@ -90,6 +102,18 @@ export async function initRace3D(canvas, options = {}) {
     flameContext = new FlameContext(new ConeFlameStrategy());
     flameContext.mount(playerFlameAnchor, scene);
 
+    // Build a freeze context + non-rotating anchor for each bot lane.
+    // Bots are lanes 1 and 2 (0 is the player).
+    for (const [index, marble] of marbles) {
+        if (index === 0) continue;
+        const anchor = new THREE.Group();
+        anchor.position.set(marble.position.x, MARBLE_RADIUS, marble.position.z);
+        scene.add(anchor);
+        const ctx = new FreezeContext(freezeStrategyFactory());
+        ctx.mount(anchor, scene);
+        freezeContexts.set(index, { context: ctx, anchor });
+    }
+
     // Wait for the images, upload everything to the GPU, then draw the first frame.
     await Promise.all(loads);
     await renderer.compileAsync(scene, camera);
@@ -109,6 +133,9 @@ export function resetRace3D() {
     distance = 0;
     botStates = [];
     if (flameContext) flameContext.deactivate();
+    for (const entry of freezeContexts.values()) {
+        entry.context.deactivate();
+    }
 }
 
 // Swap in the player's equipped shop items: { marble, landscape, track } image paths.
@@ -150,6 +177,37 @@ export function setFlameStrategy(strategy) {
 
 // Re-export strategies so game.js can import them from one place if it wants to.
 export { ConeFlameStrategy, SpriteFlameStrategy, ParticleFlameStrategy };
+
+// ---------- freeze control (Strategy pattern facade) ----------
+
+/**
+ * Start the freeze visual on the bot in the given lane.
+ * laneIndex: 1 or 2 (0 is the player).
+ */
+export function activateFreeze(laneIndex) {
+    const entry = freezeContexts.get(laneIndex);
+    if (entry) entry.context.activate();
+}
+
+export function deactivateFreeze(laneIndex) {
+    const entry = freezeContexts.get(laneIndex);
+    if (entry) entry.context.deactivate();
+}
+
+/**
+ * Swap the freeze strategy used for subsequent freezes.
+ * Accepts a factory function that returns a new FreezeStrategy instance,
+ * because each bot lane needs its own independent strategy.
+ */
+export function setFreezeStrategy(strategyFactory) {
+    freezeStrategyFactory = strategyFactory;
+    for (const entry of freezeContexts.values()) {
+        entry.context.setStrategy(freezeStrategyFactory());
+    }
+}
+
+// Re-export freeze strategies so game.js can pick one from a single place.
+export { IceCrystalFreezeStrategy, FrostParticleFreezeStrategy };
 
 // ---------- scene setup ----------
 
@@ -286,6 +344,13 @@ function renderFrame() {
         const botZ = -bot.distance;
         mesh.position.set(lane.offset, MARBLE_RADIUS, botZ);
         mesh.rotation.x = -bot.distance / MARBLE_RADIUS;
+
+        // Move the non-rotating freeze anchor to follow the bot.
+        // It sits at the bot's center so ice stays around the marble.
+        const entry = freezeContexts.get(bot.laneIndex);
+        if (entry) {
+            entry.anchor.position.set(lane.offset, MARBLE_RADIUS, botZ);
+        }
     }
 
     const playerZ = -distance;
@@ -301,6 +366,16 @@ function renderFrame() {
         const dt = Math.min((now - _lastFlameTime) / 1000, 0.1);
         _lastFlameTime = now;
         flameContext.update(dt);
+    }
+
+    // Update all freeze effects with the frame delta
+    if (freezeContexts.size > 0) {
+        const now = performance.now();
+        const dt = Math.min((now - _lastFreezeTime) / 1000, 0.1);
+        _lastFreezeTime = now;
+        for (const entry of freezeContexts.values()) {
+            entry.context.update(dt);
+        }
     }
 
     renderer.render(scene, camera);
