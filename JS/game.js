@@ -1,13 +1,30 @@
 import { requireLogin, isGuest } from './auth.js';
-import { db } from './supabase.js';import { generateQuestion } from './question.js';
-import { initRace3D, setRaceState, resetRace3D, setBotStates } from './race3d.js';
+import { db } from './supabase.js';
+import { generateQuestion } from './question.js';
+import {
+    initRace3D,
+    setRaceState,
+    resetRace3D,
+    setBotStates,
+    activateFlame,
+    deactivateFlame,
+    setFlameStrategy,
+    ParticleFlameStrategy,
+    SpriteFlameStrategy,
+    ConeFlameStrategy
+} from './race3d.js';
 import { QuestionTimer } from './questionTimer.js';
 import { BotFactory } from './bot.js';
 import { getEquippedImages } from './equipped.js';
 import { startMusic, stopMusic } from './music.js';
 import './sounds.js';
 
-const REQUIRE_LOGIN = true; 
+// ============================================================================
+// TEST MODE: Set to true to bypass the database.
+// ============================================================================
+const TEST_MODE = false;
+
+const REQUIRE_LOGIN = true;
 // Seconds per question depend on the chosen difficulty
 const QUESTION_SECONDS_BY_DIFFICULTY = { easy: 10, medium: 8, hard: 6 };
 const QUESTION_SECONDS =
@@ -15,7 +32,7 @@ const QUESTION_SECONDS =
 const TRACK_METERS = 100;      
 const BASE_SPEED = 3;           
 const BOOST_SPEED = 5;         
-const SLOW_SPEED = 1;           
+const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;
 
 //speed boost
@@ -32,7 +49,7 @@ const searchID = (id) => document.getElementById(id);
 let current = null;   // the question on screen: { num1, symbol, num2, answer }
 
 let distance = 0;
-let effect = null;               
+let effect = null;
 let lastTime = null;
 let racing = false;
 let bots = [];
@@ -49,10 +66,15 @@ let fireBoostCooldownEndsAt = 0;
 let speedBoostsOwned = 0;
 let raceVersion = 0;
 
+// Which flame strategy to use for the boost. Change this one line to switch effects:
+//   new ConeFlameStrategy()      -> flickering cone + light
+//   new SpriteFlameStrategy()    -> billboard sprite flame
+//   new ParticleFlameStrategy()  -> sparks rising behind the marble
+let flameStrategyFactory = () => new ParticleFlameStrategy();
+
 let slowdownsOwned = 0;
 let slowdownCooldownEndsAt = 0;
 let slowdownBusy = false;
-
 
 let totalTime = 0;
 let endingPlace = 1;
@@ -66,7 +88,7 @@ function say(text, kind = '') {//usde to show feedback to the player, like "corr
     const gameBox = document.querySelector('.game');
     searchID('feedback').textContent = text;
     gameBox.classList.remove('glow-ok', 'glow-error');
-    void gameBox.offsetWidth; 
+    void gameBox.offsetWidth;
     if (kind === 'ok') {
         gameBox.classList.add('glow-ok');
     } else if (kind === 'error') {
@@ -106,7 +128,12 @@ function render(speed) {
 function frame(now) {
     if (!racing) return;
 
-   
+    // Turn the flame off once the boost ends
+    if (fireBoostEndsAt > 0 && now >= fireBoostEndsAt) {
+        fireBoostEndsAt = 0;
+        deactivateFlame();
+    }
+
     if (fireBoostCooldownEndsAt > 0) {
         const fireButton = searchID('fire-boost');
 
@@ -123,8 +150,8 @@ function frame(now) {
             fireBoostCooldownEndsAt = 0;
             fireButton.textContent = '🔥';
 
-            // Only enable the button if boosts are available
-            fireBoostUnlocked = speedBoostsOwned > 0;
+            // Only enable the button if boosts are available (or if in TEST_MODE)
+            fireBoostUnlocked = TEST_MODE || speedBoostsOwned > 0;
 
             fireButton.disabled = !fireBoostUnlocked;
             fireButton.classList.toggle('ready', fireBoostUnlocked);
@@ -184,8 +211,8 @@ function startRace() {
     unansweredQuestions = 0;
     bots = BotFactory.createBotsForLanes(3);
 
-    // Unlock the Fire Boost if the player owns at least one
-    fireBoostUnlocked = speedBoostsOwned > 0;
+    // Unlock the Fire Boost if the player owns at least one (or if in TEST_MODE)
+    fireBoostUnlocked = TEST_MODE || speedBoostsOwned > 0;
 
     fireBoostEndsAt = 0;
     fireBoostCooldownEndsAt = 0;
@@ -195,6 +222,12 @@ function startRace() {
     fireButton.disabled = !fireBoostUnlocked;
     fireButton.classList.toggle('ready', fireBoostUnlocked);
     fireButton.textContent = '🔥';
+
+    // Make sure any flame from a previous race is off
+    deactivateFlame();
+
+    // Activate the chosen flame strategy for this race
+    setFlameStrategy(flameStrategyFactory());
 
     // Reset and enable the Slow Down button if the player owns one
     slowdownCooldownEndsAt = 0;
@@ -263,6 +296,7 @@ async function saveRaceResults(results) {
 
 function finishRace() {
     racing = false;
+    deactivateFlame();
     searchID('slowdown').disabled = true;
     searchID('slowdown').classList.remove('ready');
     stopMusic();
@@ -291,7 +325,7 @@ function finishRace() {
     endingPlace = 1 + bots.filter(bot => bot.finished).length;
 
     localStorage.setItem("resultsPlace", endingPlace);
-    
+
     lastRaceResults = {
         finishTime: totalTime,
         correct: correctAnswers,
@@ -309,10 +343,11 @@ searchID('restart').addEventListener('click', () => {
 });
 
 
-
-
 searchID('fire-boost').addEventListener('click', async () => {
-    if (!racing || !fireBoostUnlocked || speedBoostsOwned <= 0) return;
+    if (!racing || !fireBoostUnlocked) return;
+    
+    // In TEST_MODE, we don't care if they own 0 boosts
+    if (!TEST_MODE && speedBoostsOwned <= 0) return;
 
     const now = performance.now();
     const currentRaceVersion = raceVersion;
@@ -326,22 +361,27 @@ searchID('fire-boost').addEventListener('click', async () => {
     fireButton.disabled = true;
     fireButton.classList.remove('ready');
 
-    // Deduct one boost from Supabase
-    const { data, error } = await db.rpc('use_speed_boost');
+    if (TEST_MODE) {
+        // --- TEST MODE BYPASS ---
+        // Skip the Supabase RPC entirely so we don't deduct a real boost.
+        await new Promise(resolve => setTimeout(resolve, 100)); // Fake network delay
+    } else {
+        // --- LIVE MODE ---
+        // Deduct one boost from Supabase
+        const { data, error } = await db.rpc('use_speed_boost');
 
-    if (error) {
-        console.error('Could not use speed boost:', error.message);
+        if (error) {
+            console.error('Could not use speed boost:', error.message);
+            fireButton.disabled = false;
+            fireButton.classList.add('ready');
+            searchID('answer').focus();
+            return;
+        }
 
-        fireButton.disabled = false;
-        fireButton.classList.add('ready');
-
-        searchID('answer').focus();
-        return;
+        // Update the player's remaining boosts
+        speedBoostsOwned = data;
+        fireBoostUnlocked = speedBoostsOwned > 0;
     }
-
-    // Update the player's remaining boosts
-    speedBoostsOwned = data;
-    fireBoostUnlocked = speedBoostsOwned > 0;
 
     // Don't activate if the race ended or restarted
     if (!racing || currentRaceVersion !== raceVersion) return;
@@ -356,6 +396,9 @@ searchID('fire-boost').addEventListener('click', async () => {
 
     // Display cooldown
     fireButton.textContent = Math.ceil(FIRE_BOOST_COOLDOWN / 1000);
+
+    // Light the flame on the marble for the boost duration
+    activateFlame();
 
     // Keep the answer box focused
     searchID('answer').focus();
@@ -462,7 +505,6 @@ searchID('results').addEventListener('click', async () => {
 });
 
 
-
 function newQuestion() {
     current = generateQuestion();
     searchID('q-num1').textContent = current.num1;
@@ -483,7 +525,7 @@ function onTimeUp() {
     announce('timer:expired');
     timer.start();   // same question, fresh time
 }
-const LOW_TIME_MS = 1000;   
+const LOW_TIME_MS = 1000;
 
 class TimerBar {
     constructor(barElement, textElement) {
@@ -520,7 +562,7 @@ searchID('answer-form').addEventListener('submit', (e) => {
         return;
     }
 
-    
+
     if (Number(raw) === current.answer) {
         timer.stop();
         applyEffect(BOOST_SPEED);
@@ -548,7 +590,9 @@ let equippedImages = {};
 if (REQUIRE_LOGIN) {//start if logged in
     const profile = await requireLogin();
     if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
-    speedBoostsOwned = profile.speed_boosts ?? 0;
+
+    // In TEST_MODE, fake owning 1 boost so the button is ready
+    speedBoostsOwned = TEST_MODE ? 1 : (profile.speed_boosts ?? 0);
     slowdownsOwned = profile.slowdowns ?? 0;
     equippedImages = await getEquippedImages(profile);
 }

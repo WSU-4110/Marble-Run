@@ -1,7 +1,13 @@
 import * as THREE from 'three';
+import {
+    FlameContext,
+    ConeFlameStrategy,
+    SpriteFlameStrategy,
+    ParticleFlameStrategy,
+} from './flameStrategies.js';
 
-const TRACK_WIDTH = 4;         
-const MARBLE_RADIUS = 0.45;     
+const TRACK_WIDTH = 4;
+const MARBLE_RADIUS = 0.45;
 const MARBLE_IMAGE = 'images/marbles/marble1.jpg';   // image wrapped around the marble
 const EXTRA_TRACK = 30;
 const CAMERA_BEHIND = 6;        // how far behind the marble the camera sits
@@ -9,6 +15,8 @@ const CAMERA_HEIGHT = 2.6;      // how high the camera sits
 const CAMERA_LOOK_AHEAD = 6;    // how far ahead of the marble the camera looks
 const CAMERA_FOV = 60;          // camera field of view (higher = wider view)
 const LANDSCAPE_TILE_METERS = 10; // width of one landscape image on the ground (bigger = fewer seams, but blurrier)
+const FLAME_TRAIL_Z = 0.45;     // how far behind the marble (in +z) the flame trails
+const FLAME_TRAIL_Y = -0.35;    // vertical offset relative to marble center (negative = lower)
 
 // Three lanes divided evenly across the original TRACK_WIDTH.
 // Adjusted slightly from exact thirds to line up with the image's lane markings.
@@ -38,6 +46,13 @@ let distance = 0;
 const marbles = new Map();
 let botStates = [];
 
+// Flame (Strategy pattern) — one context, strategy swappable at runtime.
+// The flames are mounted on a separate, non-rotating anchor so they
+// always trail behind the marble instead of spinning with it.
+let flameContext = null;
+let playerFlameAnchor = null;
+let _lastFlameTime = performance.now();
+
 // Builds the scene and resolves once every texture has loaded and the first frame is drawn,
 // so the page can stay hidden until then (no flash of plain colors / default images).
 // options.images = { marble, landscape, track } equipped image paths (optional).
@@ -65,6 +80,16 @@ export async function initRace3D(canvas, options = {}) {
     resize();
     window.addEventListener('resize', resize);
 
+    // Create a scene-level anchor for the flame. The marble rolls (rotation.x),
+    // so the flame must NOT be a child of the marble — otherwise it spins too.
+    // This anchor stays upright and sits just below and behind the marble.
+    playerFlameAnchor = new THREE.Group();
+    playerFlameAnchor.position.set(0, MARBLE_RADIUS + FLAME_TRAIL_Y, FLAME_TRAIL_Z);
+    scene.add(playerFlameAnchor);
+
+    flameContext = new FlameContext(new ConeFlameStrategy());
+    flameContext.mount(playerFlameAnchor, scene);
+
     // Wait for the images, upload everything to the GPU, then draw the first frame.
     await Promise.all(loads);
     await renderer.compileAsync(scene, camera);
@@ -83,6 +108,7 @@ export function setBotStates(bots) {
 export function resetRace3D() {
     distance = 0;
     botStates = [];
+    if (flameContext) flameContext.deactivate();
 }
 
 // Swap in the player's equipped shop items: { marble, landscape, track } image paths.
@@ -103,6 +129,27 @@ export function setMarbleImage(url) {
     if (!player) return Promise.resolve();
     return loadMarbleTexture(url, player.material);
 }
+
+// ---------- flame control (Strategy pattern facade) ----------
+
+export function activateFlame() {
+    if (flameContext) flameContext.activate();
+}
+
+export function deactivateFlame() {
+    if (flameContext) flameContext.deactivate();
+}
+
+/**
+ * Swap the flame strategy at runtime.
+ * Accepts a FlameStrategy instance (e.g. new ParticleFlameStrategy()).
+ */
+export function setFlameStrategy(strategy) {
+    if (flameContext) flameContext.setStrategy(strategy);
+}
+
+// Re-export strategies so game.js can import them from one place if it wants to.
+export { ConeFlameStrategy, SpriteFlameStrategy, ParticleFlameStrategy };
 
 // ---------- scene setup ----------
 
@@ -219,6 +266,17 @@ function renderFrame() {
         const playerZ = -distance;
         player.position.set(0, MARBLE_RADIUS, playerZ);
         player.rotation.x = -distance / MARBLE_RADIUS;
+
+        // Move the non-rotating flame anchor so it trails behind AND below the marble.
+        // Because it's a separate scene object with no rotation, the flames
+        // stay upright and no longer spin with the rolling marble.
+        if (playerFlameAnchor) {
+            playerFlameAnchor.position.set(
+                0,
+                MARBLE_RADIUS + FLAME_TRAIL_Y,
+                playerZ + FLAME_TRAIL_Z
+            );
+        }
     }
 
     for (const bot of botStates) {
@@ -236,6 +294,14 @@ function renderFrame() {
 
     sun.position.set(5, 12, playerZ + 6);
     sun.target.position.set(0, 0, playerZ);
+
+    // Update the flame effect with the frame delta
+    if (flameContext) {
+        const now = performance.now();
+        const dt = Math.min((now - _lastFlameTime) / 1000, 0.1);
+        _lastFlameTime = now;
+        flameContext.update(dt);
+    }
 
     renderer.render(scene, camera);
 }
