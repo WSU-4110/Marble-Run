@@ -277,3 +277,6 @@ body {
 .preview.skill {
     background: linear-gradient(135deg, #ffe0b2, #ff9800);
 }
+.preview.skill.slowdown {
+    background: linear-gradient(135deg, #87CEEB, #4682B4);
+}
