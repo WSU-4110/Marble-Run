@@ -20,6 +20,10 @@ const FIRE_BOOST_SPEED = 7;
 const FIRE_BOOST_DURATION = 3000;
 const FIRE_BOOST_COOLDOWN = 8000;
 
+// Slowdown ability
+const SLOWDOWN_DURATION = 3000;
+const SLOWDOWN_COOLDOWN = 8000;
+
 const searchID = (id) => document.getElementById(id);
 
 let current = null;   // the question on screen: { num1, symbol, num2, answer }
@@ -41,6 +45,10 @@ let fireBoostEndsAt = 0;
 let fireBoostCooldownEndsAt = 0;
 let speedBoostsOwned = 0;
 let raceVersion = 0;
+
+let slowdownsOwned = 0;
+let slowdownCooldownEndsAt = 0;
+let slowdownBusy = false;
 
 
 let totalTime = 0;
@@ -120,6 +128,26 @@ function frame(now) {
         }
     }
 
+    // Slow Down cooldown
+    if (slowdownCooldownEndsAt > 0) {
+        const slowdownButton = searchID('slowdown');
+
+        const remaining = Math.max(
+            0,
+            Math.ceil((slowdownCooldownEndsAt - now) / 1000)
+        );
+
+        if (remaining > 0) {
+            slowdownButton.textContent = remaining;
+        } else {
+            slowdownCooldownEndsAt = 0;
+            slowdownButton.textContent = '❄️';
+
+            slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
+            slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        }
+    }
+
     if (lastTime === null) lastTime = now;
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
@@ -165,7 +193,14 @@ function startRace() {
     fireButton.classList.toggle('ready', fireBoostUnlocked);
     fireButton.textContent = '🔥';
 
+    // Reset and enable the Slow Down button if the player owns one
+    slowdownCooldownEndsAt = 0;
 
+    const slowdownButton = searchID('slowdown');
+    
+    slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
+    slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+    slowdownButton.textContent = '❄️';
 
     resetRace3D();
 
@@ -225,6 +260,8 @@ async function saveRaceResults(results) {
 
 function finishRace() {
     racing = false;
+    searchID('slowdown').disabled = true;
+    searchID('slowdown').classList.remove('ready');
     stopMusic();
     timer.stop();
     totalTime = Number(
@@ -321,9 +358,64 @@ searchID('fire-boost').addEventListener('click', async () => {
     searchID('answer').focus();
 });
 
+// Slow Down ability
+searchID('slowdown').addEventListener('click', async () => {
+    if (!racing || slowdownBusy || slowdownsOwned <= 0) return;
 
+    const now = performance.now();
+    const currentRaceVersion = raceVersion;
 
+    // Prevent use during cooldown
+    if (now < slowdownCooldownEndsAt) return;
 
+    // Find the furthest unfinished bot
+    const furthestBot = bots
+        .filter(bot => !bot.finished)
+        .sort((a, b) => b.distance - a.distance)[0];
+
+    if (!furthestBot) return;
+
+    const slowdownButton = searchID('slowdown');
+
+    slowdownBusy = true;
+    slowdownButton.disabled = true;
+    slowdownButton.classList.remove('ready');
+
+    // Deduct one slowdown from Supabase
+    const { data, error } = await db.rpc('use_slowdown');
+
+    slowdownBusy = false;
+
+    if (error) {
+        console.error('Could not use slowdown:', error.message);
+
+        slowdownButton.disabled = !racing || slowdownsOwned <= 0;
+        slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        return;
+    }
+
+    // Update the remaining inventory
+    slowdownsOwned = data;
+
+    // Make sure the race has not ended or restarted
+    if (!racing || currentRaceVersion !== raceVersion) {
+        slowdownButton.disabled = !racing || slowdownsOwned <= 0;
+        slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        return;
+    }
+
+    const slowdownTime = performance.now();
+
+    // Apply the slowdown effect
+    furthestBot.applySlowdown(slowdownTime, SLOWDOWN_DURATION);
+
+    // Start the cooldown
+    slowdownCooldownEndsAt = slowdownTime + SLOWDOWN_COOLDOWN;
+
+    slowdownButton.textContent = Math.ceil(SLOWDOWN_COOLDOWN / 1000);
+
+    searchID('answer').focus();
+});
 
 searchID('results').addEventListener('click', async () => {
     const resultsButton = searchID('results');
@@ -440,6 +532,7 @@ if (REQUIRE_LOGIN) {//start if logged in
     const profile = await requireLogin();
     if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
     speedBoostsOwned = profile.speed_boosts ?? 0;
+    slowdownsOwned = profile.slowdowns ?? 0;
     equippedImages = await getEquippedImages(profile);
 }
 

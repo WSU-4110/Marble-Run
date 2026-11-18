@@ -10,6 +10,7 @@ class BotMarble {
         this.baseSpeed = baseSpeed;
         this.distance = 0;
         this.effect = null;
+        this.slowdownEndsAt = 0;
         
         
         // The time to wait between effects
@@ -19,9 +20,16 @@ class BotMarble {
     }
 
     currentSpeed(now) {
+        // Prioritize the player's slowdown ability
+        if (now < this.slowdownEndsAt) {
+            return BOT_SLOW_SPEED;
+        }
         return this.effect && now < this.effect.endsAt
             ? this.effect.speed
             : this.baseSpeed;
+    }
+    applySlowdown(now, duration) {
+        this.slowdownEndsAt = now + duration;
     }
 
     update(now, dt, trackMeters) {
