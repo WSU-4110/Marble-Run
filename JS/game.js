@@ -8,7 +8,6 @@ import { startMusic, stopMusic } from './music.js';
 import './sounds.js';
 
 const REQUIRE_LOGIN = true; 
-const QUESTION_SECONDS = 10;    
 const TRACK_METERS = 100;      
 const BASE_SPEED = 3;           
 const BOOST_SPEED = 5;         
@@ -16,9 +15,9 @@ const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;
 
 //speed boost
-const FIRE_BOOST_SPEED = 7;
-const FIRE_BOOST_DURATION = 3000;
-const FIRE_BOOST_COOLDOWN = 8000;
+const FIRE_BOOST_SPEED = 5;
+const FIRE_BOOST_DURATION = 2000;
+const FIRE_BOOST_COOLDOWN = 3000;
 
 const searchID = (id) => document.getElementById(id);
 
@@ -34,7 +33,8 @@ let bots = [];
 let correctAnswers = 0;
 let wrongAnswers = 0;
 let unansweredQuestions = 0;
-let fireBoostUnlocked = false;
+let fireBoostUnlocked = false;   // true when the boost is charged and ready to use
+let fireBoostCharge = 0;         // correct answers since the boost was last used
 let fireBoostEndsAt = 0;
 let fireBoostCooldownEndsAt = 0;
 let totalTime = 0;
@@ -90,7 +90,7 @@ function frame(now) {
     if (!racing) return;
 
    
-    if (fireBoostUnlocked && fireBoostCooldownEndsAt > 0) {
+    if (fireBoostCooldownEndsAt > 0) {
         const fireButton = searchID('fire-boost');
 
         const remaining = Math.max(
@@ -102,11 +102,12 @@ function frame(now) {
             // Show seconds remaining
             fireButton.textContent = remaining;
         } else {
-            // Cooldown finished
+            // Cooldown finished. Only re-enable if the player has
+            // recharged the boost with 3 more correct answers.
             fireBoostCooldownEndsAt = 0;
             fireButton.textContent = '🔥';
-            fireButton.disabled = false;
-            fireButton.classList.add('ready');
+            fireButton.disabled = !fireBoostUnlocked;
+            fireButton.classList.toggle('ready', fireBoostUnlocked);
         }
     }
 
@@ -144,6 +145,7 @@ function startRace() {
 
 
     fireBoostUnlocked = false;
+    fireBoostCharge = 0;
     fireBoostEndsAt = 0;
     fireBoostCooldownEndsAt = 0;
 
@@ -272,6 +274,11 @@ searchID('fire-boost').addEventListener('click', () => {
     // Start the cooldown
     fireBoostCooldownEndsAt = now + FIRE_BOOST_COOLDOWN;
 
+    // Using the boost spends the charge: the player needs 3 more
+    // correct answers before it can be used again.
+    fireBoostUnlocked = false;
+    fireBoostCharge = 0;
+
     // Fade out and disable the button
     const fireButton = searchID('fire-boost');
     fireButton.disabled = true;
@@ -281,6 +288,18 @@ searchID('fire-boost').addEventListener('click', () => {
 
     // Keep the answer box focused
     searchID('answer').focus();
+});
+
+// Press W to use the Fire Boost instead of clicking the button.
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'w' && e.key !== 'W') return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+
+    // Stop the "w" from being typed into the answer box
+    e.preventDefault();
+
+    // click() does nothing while the button is disabled (not charged / cooling down)
+    searchID('fire-boost').click();
 });
 
 
@@ -329,6 +348,7 @@ function newQuestion() {
 function onTimeUp() {
     if (!racing) return;
     unansweredQuestions++;
+    fireBoostCharge = 0;   // running out of time also breaks the Fire Boost streak
     applyEffect(SLOW_SPEED);
     say('', 'error');
     searchID('answer').value = '';
@@ -357,7 +377,7 @@ class TimeoutPenalty {
     }
 }
 
-const timer = new QuestionTimer(QUESTION_SECONDS);
+const timer = QuestionTimer.forDifficulty(localStorage.getItem('difficulty') || 'easy');
 timer.subscribe(new TimerBar(searchID('timer-bar'), searchID('timer-text')));
 timer.subscribe(new TimeoutPenalty());
 
@@ -380,13 +400,19 @@ searchID('answer-form').addEventListener('submit', (e) => {
         say('', 'ok');
         correctAnswers++;
 
-        // Unlock Fire Boost after 3 correct answers
-        if (correctAnswers >= 3 && !fireBoostUnlocked) {
-            fireBoostUnlocked = true;
+        // Charge Fire Boost: 3 correct answers in a row since it was last used
+        if (!fireBoostUnlocked) {
+            fireBoostCharge++;
+            if (fireBoostCharge >= 3) {
+                fireBoostUnlocked = true;
 
-            const fireButton = searchID('fire-boost');
-            fireButton.disabled = false;
-            fireButton.classList.add('ready');
+                // If still cooling down, frame() enables the button when it ends
+                if (fireBoostCooldownEndsAt === 0) {
+                    const fireButton = searchID('fire-boost');
+                    fireButton.disabled = false;
+                    fireButton.classList.add('ready');
+                }
+            }
         }
 
         announce('question:answered', { correct: true });
@@ -398,6 +424,7 @@ searchID('answer-form').addEventListener('submit', (e) => {
         applyEffect(SLOW_SPEED);
         say('', 'error');
         wrongAnswers++;
+        fireBoostCharge = 0;   // a wrong answer breaks the Fire Boost streak
         announce('question:answered', { correct: false });
         searchID('answer').value = '';
         searchID('answer').focus();

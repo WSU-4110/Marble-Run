@@ -1,4 +1,12 @@
-const TICK_MS = 50;  
+const TICK_MS = 50;
+
+// Seconds allowed per question for each difficulty level.
+export const DIFFICULTY_SECONDS = {
+    easy: 10,
+    medium: 8,
+    hard: 6,
+};
+const DEFAULT_DIFFICULTY = 'easy';
 
 export class QuestionTimer {
     constructor(seconds) {
@@ -6,6 +14,13 @@ export class QuestionTimer {
         this.observers = [];
         this.endTime = 0;
         this.intervalId = null;
+    }
+
+    // Factory: builds a timer whose length matches the chosen difficulty.
+    // Unknown or missing difficulty falls back to easy.
+    static forDifficulty(difficulty) {
+        const seconds = DIFFICULTY_SECONDS[difficulty] ?? DIFFICULTY_SECONDS[DEFAULT_DIFFICULTY];
+        return new QuestionTimer(seconds);
     }
 
 
