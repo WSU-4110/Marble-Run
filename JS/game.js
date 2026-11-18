@@ -11,7 +11,13 @@ import {
     setFlameStrategy,
     ParticleFlameStrategy,
     SpriteFlameStrategy,
-    ConeFlameStrategy
+    ConeFlameStrategy,
+    // Freeze (Strategy pattern)
+    activateFreeze,
+    deactivateFreeze,
+    setFreezeStrategy,
+    IceCrystalFreezeStrategy,
+    FrostParticleFreezeStrategy,
 } from './race3d.js';
 import { QuestionTimer } from './questionTimer.js';
 import { BotFactory } from './bot.js';
@@ -29,9 +35,9 @@ const REQUIRE_LOGIN = true;
 const QUESTION_SECONDS_BY_DIFFICULTY = { easy: 10, medium: 8, hard: 6 };
 const QUESTION_SECONDS =
     QUESTION_SECONDS_BY_DIFFICULTY[localStorage.getItem('difficulty')] ?? 10;
-const TRACK_METERS = 100;      
-const BASE_SPEED = 3;           
-const BOOST_SPEED = 5;         
+const TRACK_METERS = 100;
+const BASE_SPEED = 3;
+const BOOST_SPEED = 5;
 const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;
 
@@ -71,6 +77,11 @@ let raceVersion = 0;
 //   new SpriteFlameStrategy()    -> billboard sprite flame
 //   new ParticleFlameStrategy()  -> sparks rising behind the marble
 let flameStrategyFactory = () => new ParticleFlameStrategy();
+
+// Which freeze strategy to use for the Slow Down effect on bots.
+//   new IceCrystalFreezeStrategy()      -> ice cage with crystal spikes
+//   new FrostParticleFreezeStrategy()   -> orbiting snowflakes + frost ring
+let freezeStrategyFactory = () => new FrostParticleFreezeStrategy();
 
 let slowdownsOwned = 0;
 let slowdownCooldownEndsAt = 0;
@@ -173,7 +184,10 @@ function frame(now) {
             slowdownCooldownEndsAt = 0;
             slowdownButton.textContent = '❄️';
 
-            slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
+            // Only enable if slowdowns are available (or if in TEST_MODE)
+            const slowdownUnlocked = TEST_MODE || slowdownsOwned > 0;
+
+            slowdownButton.disabled = !slowdownUnlocked || slowdownBusy;
             slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
         }
     }
@@ -229,11 +243,18 @@ function startRace() {
     // Activate the chosen flame strategy for this race
     setFlameStrategy(flameStrategyFactory());
 
-    // Reset and enable the Slow Down button if the player owns one
+    // Activate the chosen freeze strategy for this race.
+    // NOTE: pass the factory function (not an instance) so each bot lane
+    // gets its own independent strategy instance.
+    setFreezeStrategy(freezeStrategyFactory);
+
+    // Reset and enable the Slow Down button if the player owns one (or if in TEST_MODE)
     slowdownCooldownEndsAt = 0;
 
+    if (TEST_MODE) slowdownsOwned = Math.max(slowdownsOwned, 1);
+
     const slowdownButton = searchID('slowdown');
-    
+
     slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
     slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
     slowdownButton.textContent = '❄️';
@@ -345,7 +366,7 @@ searchID('restart').addEventListener('click', () => {
 
 searchID('fire-boost').addEventListener('click', async () => {
     if (!racing || !fireBoostUnlocked) return;
-    
+
     // In TEST_MODE, we don't care if they own 0 boosts
     if (!TEST_MODE && speedBoostsOwned <= 0) return;
 
@@ -408,6 +429,9 @@ searchID('fire-boost').addEventListener('click', async () => {
 searchID('slowdown').addEventListener('click', async () => {
     if (!racing || slowdownBusy || slowdownsOwned <= 0) return;
 
+    // In TEST_MODE, we don't care if they own 0 slowdowns
+    if (!TEST_MODE && slowdownsOwned <= 0) return;
+
     const now = performance.now();
     const currentRaceVersion = raceVersion;
 
@@ -427,21 +451,29 @@ searchID('slowdown').addEventListener('click', async () => {
     slowdownButton.disabled = true;
     slowdownButton.classList.remove('ready');
 
-    // Deduct one slowdown from Supabase
-    const { data, error } = await db.rpc('use_slowdown');
+    if (TEST_MODE) {
+        // --- TEST MODE BYPASS ---
+        // Skip the Supabase RPC entirely so we don't deduct a real slowdown.
+        await new Promise(resolve => setTimeout(resolve, 100)); // Fake network delay
+    } else {
+        // --- LIVE MODE ---
+        // Deduct one slowdown from Supabase
+        const { data, error } = await db.rpc('use_slowdown');
 
-    slowdownBusy = false;
+        if (error) {
+            console.error('Could not use slowdown:', error.message);
 
-    if (error) {
-        console.error('Could not use slowdown:', error.message);
+            slowdownBusy = false;
+            slowdownButton.disabled = !racing || slowdownsOwned <= 0;
+            slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+            return;
+        }
 
-        slowdownButton.disabled = !racing || slowdownsOwned <= 0;
-        slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
-        return;
+        // Update the remaining inventory
+        slowdownsOwned = data;
     }
 
-    // Update the remaining inventory
-    slowdownsOwned = data;
+    slowdownBusy = false;
 
     // Make sure the race has not ended or restarted
     if (!racing || currentRaceVersion !== raceVersion) {
@@ -452,8 +484,17 @@ searchID('slowdown').addEventListener('click', async () => {
 
     const slowdownTime = performance.now();
 
-    // Apply the slowdown effect
+    // Apply the slowdown effect to the bot's movement
     furthestBot.applySlowdown(slowdownTime, SLOWDOWN_DURATION);
+
+    // Show the freeze animation on that bot's marble
+    const frozenLane = furthestBot.laneIndex;
+    activateFreeze(frozenLane);
+
+    // Hide the freeze animation when the slow down ends
+    setTimeout(() => {
+        deactivateFreeze(frozenLane);
+    }, SLOWDOWN_DURATION);
 
     // Start the cooldown
     slowdownCooldownEndsAt = slowdownTime + SLOWDOWN_COOLDOWN;
@@ -591,9 +632,9 @@ if (REQUIRE_LOGIN) {//start if logged in
     const profile = await requireLogin();
     if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
 
-    // In TEST_MODE, fake owning 1 boost so the button is ready
+    // In TEST_MODE, fake owning 1 of each so both buttons are ready
     speedBoostsOwned = TEST_MODE ? 1 : (profile.speed_boosts ?? 0);
-    slowdownsOwned = profile.slowdowns ?? 0;
+    slowdownsOwned   = TEST_MODE ? 1 : (profile.slowdowns ?? 0);
     equippedImages = await getEquippedImages(profile);
 }
 

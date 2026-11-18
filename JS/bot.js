@@ -28,8 +28,16 @@ class BotMarble {
             ? this.effect.speed
             : this.baseSpeed;
     }
+
     applySlowdown(now, duration) {
         this.slowdownEndsAt = now + duration;
+    }
+
+    // True while the player's Slow Down ability is affecting this bot.
+    // race3d.js and game.js use this to know when to show/hide the freeze
+    // animation on the bot's marble.
+    isFrozen(now = performance.now()) {
+        return now < this.slowdownEndsAt;
     }
 
     update(now, dt, trackMeters) {
@@ -53,10 +61,13 @@ class BotMarble {
     }
 
     toState() {
+        const now = performance.now();
         return {
             laneIndex: this.laneIndex,
             distance: this.distance,
-            speed: this.currentSpeed(performance.now()),
+            speed: this.currentSpeed(now),
+            // Exposed so game.js/race3d.js can react to the freeze state
+            frozen: this.isFrozen(now),
         };
     }
 }
