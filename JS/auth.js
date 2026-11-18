@@ -9,6 +9,7 @@ const GUEST_PROFILE = {
     display_name: 'Guest',
     coins: 0,
     speed_boosts: 0,
+    slowdowns: 0,
     equipped_marble: 'classic-orange',
     equipped_landscape: 'grassland',
     equipped_track: 'classic-track',
@@ -32,8 +33,7 @@ export async function getProfile() {
     // Get the profile row for the current user. The profile row has the same id as the user.
     const { data, error } = await db
         .from('profiles')
-        .select('id, display_name, coins, speed_boosts,equipped_marble, equipped_landscape, equipped_track, unlocked_items')//selected columns
-
+        .select('id, display_name, coins, speed_boosts, slowdowns, equipped_marble, equipped_landscape, equipped_track, unlocked_items')//selected columns
         .eq('id', session.user.id)//look for the profile with the same id as the current session user
         .single();//resturn a single row instead of an array
 
