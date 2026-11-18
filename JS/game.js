@@ -8,7 +8,10 @@ import { startMusic, stopMusic } from './music.js';
 import './sounds.js';
 
 const REQUIRE_LOGIN = true; 
-const QUESTION_SECONDS = 10;    
+// Seconds per question depend on the chosen difficulty
+const QUESTION_SECONDS_BY_DIFFICULTY = { easy: 10, medium: 8, hard: 6 };
+const QUESTION_SECONDS =
+    QUESTION_SECONDS_BY_DIFFICULTY[localStorage.getItem('difficulty')] ?? 10;
 const TRACK_METERS = 100;      
 const BASE_SPEED = 3;           
 const BOOST_SPEED = 5;         
@@ -16,13 +19,13 @@ const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;
 
 //speed boost
-const FIRE_BOOST_SPEED = 7;
-const FIRE_BOOST_DURATION = 3000;
-const FIRE_BOOST_COOLDOWN = 8000;
+const FIRE_BOOST_SPEED = 5;
+const FIRE_BOOST_DURATION = 2000;
+const FIRE_BOOST_COOLDOWN = 2000; // starts when the boost starts
 
 // Slowdown ability
-const SLOWDOWN_DURATION = 3000;
-const SLOWDOWN_COOLDOWN = 8000;
+const SLOWDOWN_DURATION = 2000;
+const SLOWDOWN_COOLDOWN = 2000; // starts when the slowdown starts
 
 const searchID = (id) => document.getElementById(id);
 
@@ -415,6 +418,20 @@ searchID('slowdown').addEventListener('click', async () => {
     slowdownButton.textContent = Math.ceil(SLOWDOWN_COOLDOWN / 1000);
 
     searchID('answer').focus();
+});
+
+// Keyboard shortcuts: W = Fire Boost, S = Slow Down
+document.addEventListener('keydown', (e) => {
+    if (!racing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const key = e.key.toLowerCase();
+    if (key === 'w') {
+        e.preventDefault(); // keep the letter out of the answer box
+        searchID('fire-boost').click();
+    } else if (key === 's') {
+        e.preventDefault();
+        searchID('slowdown').click();
+    }
 });
 
 searchID('results').addEventListener('click', async () => {
