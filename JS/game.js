@@ -25,17 +25,24 @@ import './sounds.js';
 const TEST_MODE = false;
 
 const REQUIRE_LOGIN = true;
-const QUESTION_SECONDS = 10;
-const TRACK_METERS = 100;
-const BASE_SPEED = 3;
-const BOOST_SPEED = 5;
+// Seconds per question depend on the chosen difficulty
+const QUESTION_SECONDS_BY_DIFFICULTY = { easy: 10, medium: 8, hard: 6 };
+const QUESTION_SECONDS =
+    QUESTION_SECONDS_BY_DIFFICULTY[localStorage.getItem('difficulty')] ?? 10;
+const TRACK_METERS = 100;      
+const BASE_SPEED = 3;           
+const BOOST_SPEED = 5;         
 const SLOW_SPEED = 1;
 const EFFECT_MS = 1000;
 
 //speed boost
-const FIRE_BOOST_SPEED = 7;
-const FIRE_BOOST_DURATION = 3000;
-const FIRE_BOOST_COOLDOWN = 8000;
+const FIRE_BOOST_SPEED = 5;
+const FIRE_BOOST_DURATION = 2000;
+const FIRE_BOOST_COOLDOWN = 2000; // starts when the boost starts
+
+// Slowdown ability
+const SLOWDOWN_DURATION = 2000;
+const SLOWDOWN_COOLDOWN = 2000; // starts when the slowdown starts
 
 const searchID = (id) => document.getElementById(id);
 
@@ -64,6 +71,10 @@ let raceVersion = 0;
 //   new SpriteFlameStrategy()    -> billboard sprite flame
 //   new ParticleFlameStrategy()  -> sparks rising behind the marble
 let flameStrategyFactory = () => new ParticleFlameStrategy();
+
+let slowdownsOwned = 0;
+let slowdownCooldownEndsAt = 0;
+let slowdownBusy = false;
 
 let totalTime = 0;
 let endingPlace = 1;
@@ -147,6 +158,26 @@ function frame(now) {
         }
     }
 
+    // Slow Down cooldown
+    if (slowdownCooldownEndsAt > 0) {
+        const slowdownButton = searchID('slowdown');
+
+        const remaining = Math.max(
+            0,
+            Math.ceil((slowdownCooldownEndsAt - now) / 1000)
+        );
+
+        if (remaining > 0) {
+            slowdownButton.textContent = remaining;
+        } else {
+            slowdownCooldownEndsAt = 0;
+            slowdownButton.textContent = '❄️';
+
+            slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
+            slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        }
+    }
+
     if (lastTime === null) lastTime = now;
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
@@ -197,6 +228,15 @@ function startRace() {
 
     // Activate the chosen flame strategy for this race
     setFlameStrategy(flameStrategyFactory());
+
+    // Reset and enable the Slow Down button if the player owns one
+    slowdownCooldownEndsAt = 0;
+
+    const slowdownButton = searchID('slowdown');
+    
+    slowdownButton.disabled = slowdownsOwned <= 0 || slowdownBusy;
+    slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+    slowdownButton.textContent = '❄️';
 
     resetRace3D();
 
@@ -257,6 +297,8 @@ async function saveRaceResults(results) {
 function finishRace() {
     racing = false;
     deactivateFlame();
+    searchID('slowdown').disabled = true;
+    searchID('slowdown').classList.remove('ready');
     stopMusic();
     timer.stop();
     totalTime = Number(
@@ -362,6 +404,78 @@ searchID('fire-boost').addEventListener('click', async () => {
     searchID('answer').focus();
 });
 
+// Slow Down ability
+searchID('slowdown').addEventListener('click', async () => {
+    if (!racing || slowdownBusy || slowdownsOwned <= 0) return;
+
+    const now = performance.now();
+    const currentRaceVersion = raceVersion;
+
+    // Prevent use during cooldown
+    if (now < slowdownCooldownEndsAt) return;
+
+    // Find the furthest unfinished bot
+    const furthestBot = bots
+        .filter(bot => !bot.finished)
+        .sort((a, b) => b.distance - a.distance)[0];
+
+    if (!furthestBot) return;
+
+    const slowdownButton = searchID('slowdown');
+
+    slowdownBusy = true;
+    slowdownButton.disabled = true;
+    slowdownButton.classList.remove('ready');
+
+    // Deduct one slowdown from Supabase
+    const { data, error } = await db.rpc('use_slowdown');
+
+    slowdownBusy = false;
+
+    if (error) {
+        console.error('Could not use slowdown:', error.message);
+
+        slowdownButton.disabled = !racing || slowdownsOwned <= 0;
+        slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        return;
+    }
+
+    // Update the remaining inventory
+    slowdownsOwned = data;
+
+    // Make sure the race has not ended or restarted
+    if (!racing || currentRaceVersion !== raceVersion) {
+        slowdownButton.disabled = !racing || slowdownsOwned <= 0;
+        slowdownButton.classList.toggle('ready', !slowdownButton.disabled);
+        return;
+    }
+
+    const slowdownTime = performance.now();
+
+    // Apply the slowdown effect
+    furthestBot.applySlowdown(slowdownTime, SLOWDOWN_DURATION);
+
+    // Start the cooldown
+    slowdownCooldownEndsAt = slowdownTime + SLOWDOWN_COOLDOWN;
+
+    slowdownButton.textContent = Math.ceil(SLOWDOWN_COOLDOWN / 1000);
+
+    searchID('answer').focus();
+});
+
+// Keyboard shortcuts: W = Fire Boost, S = Slow Down
+document.addEventListener('keydown', (e) => {
+    if (!racing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const key = e.key.toLowerCase();
+    if (key === 'w') {
+        e.preventDefault(); // keep the letter out of the answer box
+        searchID('fire-boost').click();
+    } else if (key === 's') {
+        e.preventDefault();
+        searchID('slowdown').click();
+    }
+});
 
 searchID('results').addEventListener('click', async () => {
     const resultsButton = searchID('results');
@@ -476,9 +590,10 @@ let equippedImages = {};
 if (REQUIRE_LOGIN) {//start if logged in
     const profile = await requireLogin();
     if (!profile) throw new Error('Not logged in');   // requireLogin is already redirecting
-    
+
     // In TEST_MODE, fake owning 1 boost so the button is ready
     speedBoostsOwned = TEST_MODE ? 1 : (profile.speed_boosts ?? 0);
+    slowdownsOwned = profile.slowdowns ?? 0;
     equippedImages = await getEquippedImages(profile);
 }
 

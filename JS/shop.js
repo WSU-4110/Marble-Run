@@ -86,6 +86,10 @@ function makePreview(item) {
     } else if (item.category === 'skill') {
         const icon = document.createElement('span');
         icon.textContent = '🔥';
+    if (item.id === 'slowdown') {
+        icon.textContent = '❄️';
+        preview.classList.add('slowdown');
+    }
         icon.style.fontSize = '4rem';
         preview.append(icon);
     }
@@ -144,6 +148,11 @@ function makeCard(item) {
         quantity.textContent = `Owned: ${state.profile.speed_boosts ?? 0}`;
         card.append(quantity);
     }
+    if (item.id === 'slowdown') {
+        const quantity = document.createElement('p');
+        quantity.textContent = `Owned: ${state.profile.slowdowns ?? 0}`;
+        card.append(quantity);
+    }
 
 card.append(button);
     return card;
@@ -191,6 +200,9 @@ async function buy(item) {
     if (item.id === 'speed-boost') {
         // Consumable skill purchase
         ({ data, error } = await db.rpc('purchase_speed_boost'));
+    } else if (item.id === 'slowdown') {
+        // Slowdown skill purchase
+        ({ data, error } = await db.rpc('purchase_slowdown'));
     } else {
         // Regular shop item purchase
         ({ data, error } = await db.rpc('purchase_item', {
@@ -212,6 +224,9 @@ async function buy(item) {
     if (item.id === 'speed-boost') {
         // Increase the number of boosts owned
         state.profile.speed_boosts = data.speed_boosts;
+    } else if (item.id === 'slowdown') {
+        // Increase the number of slowdowns owned
+        state.profile.slowdowns = data.slowdowns;
     } else {
         // Permanently unlock regular items
         state.profile.unlocked_items = data.unlocked_items;
