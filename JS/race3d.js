@@ -10,6 +10,7 @@ import {
     IceCrystalFreezeStrategy,
     FrostParticleFreezeStrategy,
 } from './freezeStrategies.js';
+import { createSceneryForLandscape } from './sceneryStrategies.js';
 
 const TRACK_WIDTH = 4;
 const MARBLE_RADIUS = 0.45;
@@ -18,7 +19,7 @@ const EXTRA_TRACK = 30;
 const CAMERA_BEHIND = 6;        // how far behind the marble the camera sits
 const CAMERA_HEIGHT = 2.6;      // how high the camera sits
 const CAMERA_LOOK_AHEAD = 6;    // how far ahead of the marble the camera looks
-const CAMERA_FOV = 60;          // camera field of view (higher = wider view)
+const CAMERA_FOV = 50;         // camera field of view (higher = wider view)
 const LANDSCAPE_TILE_METERS = 10; // width of one landscape image on the ground (bigger = fewer seams, but blurrier)
 const FLAME_TRAIL_Z = 0.45;     // how far behind the marble (in +z) the flame trails
 const FLAME_TRAIL_Y = -0.35;    // vertical offset relative to marble center (negative = lower)
@@ -47,6 +48,7 @@ let ground, track;              // kept so the shop's equipped images can be app
 let groundLength = 0, trackLength = 0;
 let trackMeters = 100;
 let distance = 0;
+let scenery = null;             // trees / cacti beside the track (Strategy pattern, one per landscape)
 
 const marbles = new Map();
 let botStates = [];
@@ -88,6 +90,7 @@ export async function initRace3D(canvas, options = {}) {
         ...addMarbles(images.marble),   // player gets the equipped marble, bots their own design
     ];
     addFinishLine();
+    addScenery(images.landscape);
 
     resize();
     window.addEventListener('resize', resize);
@@ -145,7 +148,10 @@ export function setEquippedImages(images = {}) {
     if (!player) return Promise.resolve();
     const loads = [];
     if (images.marble) loads.push(loadMarbleTexture(images.marble, player.material));
-    if (images.landscape) loads.push(loadRepeatingTexture(images.landscape, ground.material, LANDSCAPE_TILE_METERS, 300, groundLength));
+    if (images.landscape) {
+        loads.push(loadRepeatingTexture(images.landscape, ground.material, LANDSCAPE_TILE_METERS, 300, groundLength));
+        addScenery(images.landscape);
+    }
     if (images.track) loads.push(loadRepeatingTexture(images.track, track.material, TRACK_WIDTH, TRACK_WIDTH, trackLength));
     return Promise.all(loads);
 }
@@ -237,6 +243,27 @@ function addGround(imageUrl) {
 
     // Reuse the 2D landscape art as a repeating ground texture (keeps the grass color if the image is missing).
     return loadRepeatingTexture(imageUrl || 'images/landscapes/landscape.jpg', material, LANDSCAPE_TILE_METERS, 300, length);
+}
+
+// Scatter landscape-specific objects (trees, cacti, ...) on both sides of the track.
+// Called again when the equipped landscape changes, so it clears the old scenery first.
+function addScenery(landscapeUrl) {
+    if (scenery) scenery.dispose();
+    scenery = createSceneryForLandscape(landscapeUrl);
+    scenery.build(scene, {
+        startZ: 10,                                   // just behind the starting camera
+        endZ: -(trackMeters + EXTRA_TRACK + 60),      // a bit past the finish line
+    });
+
+    // Per-landscape fog. The sky takes the fog color so distant objects fade into it.
+    const fog = scenery.fog;
+    if (fog) {
+        scene.fog = new THREE.Fog(fog.color, fog.near, fog.far);
+        scene.background = new THREE.Color(fog.color);
+    } else {
+        scene.fog = null;
+        scene.background = new THREE.Color(COLORS.sky);
+    }
 }
 
 function addTrack(imageUrl) {
