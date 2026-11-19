@@ -2,6 +2,9 @@
 const BOT_BASE_SPEED = 3;
 const BOT_BOOST_SPEED = 5;
 const BOT_SLOW_SPEED = 1;
+// How far a bot rolls past the finish line before stopping.
+// Keep below EXTRA_TRACK in race3d.js (30) so it stays on the track.
+const BOT_COAST_METERS = 20;
 
 
 class BotMarble {
@@ -17,6 +20,8 @@ class BotMarble {
         this.timerMs = initialTimerMs; 
         this.nextExpiry = performance.now() + initialTimerMs;
         this.finished = false;
+        this.coastSpeed = 0;
+        this.coastDecel = 0;
     }
 
     currentSpeed(now) {
@@ -41,7 +46,10 @@ class BotMarble {
     }
 
     update(now, dt, trackMeters) {
-        if (this.finished) return;
+        if (this.finished) {
+            this.coast(dt, trackMeters);
+            return;
+        }
 
         if (now >= this.nextExpiry) {
             this.onTimerExpired(now);
@@ -53,7 +61,26 @@ class BotMarble {
 
         if (this.distance >= trackMeters) {
             this.finished = true;
+            // Keep rolling past the line and brake to a stop over BOT_COAST_METERS (v² = 2·a·d).
+            this.coastSpeed = speed;
+            this.coastDecel = (speed * speed) / (2 * BOT_COAST_METERS);
         }
+    }
+
+    // After finishing: slow down smoothly instead of stopping dead on the line.
+    coast(dt, trackMeters) {
+        if (!this.isCoasting()) return;
+        this.coastSpeed = Math.max(0, this.coastSpeed - this.coastDecel * dt);
+        this.distance = Math.min(this.distance + this.coastSpeed * dt, trackMeters + BOT_COAST_METERS);
+    }
+
+    // True while the bot is still racing or still rolling after the finish.
+    isCoasting() {
+        return this.finished && this.coastSpeed > 0;
+    }
+
+    isMoving() {
+        return !this.finished || this.isCoasting();
     }
 
     onTimerExpired() {
@@ -65,7 +92,7 @@ class BotMarble {
         return {
             laneIndex: this.laneIndex,
             distance: this.distance,
-            speed: this.currentSpeed(now),
+            speed: this.finished ? this.coastSpeed : this.currentSpeed(now),
             // Exposed so game.js/race3d.js can react to the freeze state
             frozen: this.isFrozen(now),
         };

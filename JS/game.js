@@ -204,8 +204,37 @@ function frame(now) {
     }
 
     render(speed);
-    if (distance >= TRACK_METERS) { finishRace(); return; }
+    if (distance >= TRACK_METERS) { finishRace(); coastAfterFinish(speed); return; }
     requestAnimationFrame(frame);
+}
+
+// After crossing the line the marble keeps rolling and brakes to a stop
+// instead of freezing on the finish line. Bots keep racing to the line and
+// coast to a stop too (see BotMarble.coast). Purely visual: results are already saved.
+const COAST_METERS = 20; // keep below EXTRA_TRACK in race3d.js (30) so the marble stays on the track
+
+function coastAfterFinish(startSpeed) {
+    const version = raceVersion;
+    const decel = (startSpeed * startSpeed) / (2 * COAST_METERS); // v² = 2·a·d → stops after COAST_METERS
+    let speed = startSpeed;
+    let coasted = 0;
+    let last = performance.now();
+
+    function step(now) {
+        if (version !== raceVersion) return;   // a new race started; stop coasting
+        const dt = Math.min((now - last) / 1000, 0.1);
+        last = now;
+
+        speed = Math.max(0, speed - decel * dt);
+        coasted = Math.min(coasted + speed * dt, COAST_METERS);
+        for (const bot of bots) bot.update(now, dt, TRACK_METERS);
+
+        setRaceState(TRACK_METERS + coasted, speed);
+        setBotStates(bots.map((b) => b.toState()));
+
+        if (speed > 0 || bots.some((b) => b.isMoving())) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
 }
 
 function startRace() {
