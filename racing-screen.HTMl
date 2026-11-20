@@ -18,14 +18,6 @@
     <!-- race3d.js draws the 3D scene into this canvas -->
     <canvas id="canvas"></canvas>
 
-    <div class="timer" role="timer" aria-label="Time left">
-        <div class="timer-track">
-            <div class="timer-bar" id="timer-bar"></div>
-        </div>
-        <span class="timer-text" id="timer-text">10</span>
-        <p class="hud" id="hud"></p>
-    </div>
-
     <a class="home-btn" href="start-screen.html">Home</a>
 
     <!-- Fire Speed Boost Button -->
@@ -64,13 +56,20 @@
             </div>
         </form>
 
+        <!-- Time bar sits directly under the question box -->
+        <div class="timer" role="timer" aria-label="Time left">
+            <div class="timer-track">
+                <div class="timer-bar" id="timer-bar"></div>
+            </div>
+        </div>
+
         <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
         <div class="popup" id="popup" hidden>
-        <div class="popup-buttons">
-            <button class="restart-btn" id="restart" type="button">Restart</button>
-            <button class="restart-btn" id="results" type="button">Results</button>
+            <div class="popup-buttons">
+                <button class="restart-btn" id="restart" type="button">Restart</button>
+                <button class="restart-btn" id="results" type="button">Results</button>
+            </div>
         </div>
-</div>
     </main>
 
     <!-- NEW: tells the browser where "three" comes from. Must be ABOVE the module scripts. -->
