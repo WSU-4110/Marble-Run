@@ -130,10 +130,10 @@ function applyEffect(speed) {
 }
 
 function render(speed) {
-    searchID('hud').textContent = distance.toFixed(1) + ' / ' + TRACK_METERS + ' m  |  ' + speed + ' m/s';
+    // The HUD text (distance / speed) has been removed from the UI.
+    // The 3D scene still needs the race state and bot states updated each frame.
     setRaceState(distance, speed);
     setBotStates(bots.map((b) => b.toState()));
-
 }
 
 function frame(now) {
@@ -598,15 +598,25 @@ function onTimeUp() {
 const LOW_TIME_MS = 1000;
 
 class TimerBar {
-    constructor(barElement, textElement) {
+    constructor(barElement) {
         this.barElement = barElement;
-        this.textElement = textElement;
     }
 
     onTick(msLeft, totalMs) {
-        this.barElement.style.width = (msLeft / totalMs) * 100 + '%';
+        const ratio = msLeft / totalMs;            // 1 = full time, 0 = expired
+        this.barElement.style.width = (ratio * 100) + '%';
+
+        // Green (full) -> yellow (half) -> red (empty).
+        // Hue goes 120deg (green) down to 0deg (red).
+        const hue = Math.round(120 * ratio);
+        this.barElement.style.background = `hsl(${hue}, 85%, 45%)`;
+
+        // Glow color follows the hue; glow strength grows as time runs out.
+        this.barElement.style.setProperty('--bar-hue', hue);
+        this.barElement.style.setProperty('--glow-strength', (1 - ratio).toFixed(3));
+
+        // Pulse when nearly out of time
         this.barElement.classList.toggle('low', msLeft <= LOW_TIME_MS);
-        this.textElement.textContent = Math.ceil(msLeft / 1000);
     }
 }
 
@@ -617,7 +627,7 @@ class TimeoutPenalty {
 }
 
 const timer = new QuestionTimer(QUESTION_SECONDS);
-timer.subscribe(new TimerBar(searchID('timer-bar'), searchID('timer-text')));
+timer.subscribe(new TimerBar(searchID('timer-bar')));
 timer.subscribe(new TimeoutPenalty());
 
 searchID('answer-form').addEventListener('submit', (e) => {
