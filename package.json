@@ -1,0 +1,29 @@
+{
+  "name": "marble-run",
+  "version": "1.0.0",
+  "description": "Wayne State University CSC 4110 project",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WSU-4110/Marble-Run.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/WSU-4110/Marble-Run/issues"
+  },
+  "homepage": "https://github.com/WSU-4110/Marble-Run#readme",
+  "devDependencies": {
+    "jsdom": "^31.0.1",
+    "vitest": "^5.1.1"
+  }
+}
